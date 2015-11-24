@@ -48,6 +48,8 @@ LeePositionControllerNode::LeePositionControllerNode() {
 
   command_timer_ = nh.createTimer(ros::Duration(0), &LeePositionControllerNode::TimedCommandCallback, this,
                                   true, false);
+
+    printf("\n    Constructer \n");
 }
 
 LeePositionControllerNode::~LeePositionControllerNode() { }
@@ -119,6 +121,8 @@ void LeePositionControllerNode::MultiDofJointTrajectoryCallback(
   command_timer_.stop();
   commands_.clear();
   command_waiting_times_.clear();
+
+  printf("\n    Seen message \n");
 
   const size_t n_commands = msg->points.size();
 

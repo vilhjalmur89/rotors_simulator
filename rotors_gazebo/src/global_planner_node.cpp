@@ -32,6 +32,9 @@
 #include <math.h>
 
 bool sim_running = false;
+std::string inputFilePath;
+ros::Publisher wp_pub;
+
 
 static const int64_t kNanoSecondsInSecond = 1000000000;
 
@@ -53,6 +56,10 @@ class WaypointWithTime {
   double yaw;
   double waiting_time;
 };
+
+double between(double start, double end, int steps, int totalSteps) {
+  return start + (end - start) * steps / totalSteps;
+}
 
 void increaseResolution(std::vector<WaypointWithTime> & waypoints, std::vector<WaypointWithTime> & newWaypoints, int factor) {
   newWaypoints.push_back(waypoints[0]);
@@ -79,35 +86,21 @@ void increaseResolution(std::vector<WaypointWithTime> & waypoints, std::vector<W
     factor = std::max(factor, (int) (diffYaw / minRot)) + 1;
     for (int j=1; j <= factor; ++j) {
       double t = std::max(minTime, (waypoints[i-1].waiting_time + waypoints[i].waiting_time) / (2*factor));
-      double x = waypoints[i-1].position[0] + ((waypoints[i].position[0] - waypoints[i-1].position[0]) * j / factor);
-      double y = waypoints[i-1].position[1] + ((waypoints[i].position[1] - waypoints[i-1].position[1]) * j / factor);
-      double z = waypoints[i-1].position[2] + ((waypoints[i].position[2] - waypoints[i-1].position[2]) * j / factor);
-      double yaw = waypoints[i-1].yaw + ((waypoints[i].yaw - waypoints[i-1].yaw) * j / factor);
+      double x = between(waypoints[i-1].position[0], waypoints[i].position[0], j, factor);
+      double y = between(waypoints[i-1].position[1], waypoints[i].position[1], j, factor);
+      double z = between(waypoints[i-1].position[2], waypoints[i].position[2], j, factor);
+      double yaw = between(waypoints[i-1].yaw, waypoints[i].yaw, j, factor);
+      // double yaw = waypoints[i-1].yaw;
       newWaypoints.push_back(WaypointWithTime(t, x, y, z, yaw));
     }
   }
 }
 
-int main(int argc, char** argv) {
+void getWaypoints(std::vector<WaypointWithTime> & waypoints) {
 
-  ros::init(argc, argv, "waypoint_publisher");
-  ros::NodeHandle nh;
-
-  ROS_INFO("Started waypoint_publisher.");
-
-  ros::V_string args;
-  ros::removeROSArgs(argc, argv, args);
-
-  if (args.size() != 2 && args.size() != 3) {
-    ROS_ERROR("Usage: waypoint_publisher <waypoint_file>"
-        "\nThe waypoint file should be structured as: space separated: wait_time [s] x[m] y[m] z[m] yaw[deg])");
-    return -1;
-  }
-
-  std::vector<WaypointWithTime> waypoints;
   const float DEG_2_RAD = M_PI / 180.0;
 
-  std::ifstream wp_file(args.at(1).c_str());
+  std::ifstream wp_file(inputFilePath.c_str());
 
   if (wp_file.is_open()) {
     double t, x, y, z, yaw;
@@ -126,28 +119,13 @@ int main(int argc, char** argv) {
   }
 
   else {
-    ROS_ERROR_STREAM("Unable to open poses file: " << args.at(1));
-    return -1;
+    ROS_ERROR_STREAM("Unable to open poses file: " << inputFilePath);
   }
+}
 
-  // The IMU is used, to determine if the simulator is running or not.
-  ros::Subscriber sub = nh.subscribe("imu", 10, &callback);
-
-  ros::Publisher wp_pub =
-      nh.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
-      mav_msgs::default_topics::COMMAND_TRAJECTORY, 10);
-
-  ROS_INFO("Wait for simulation to become ready...");
-
-  while (!sim_running && ros::ok()) {
-    ros::spinOnce();
-    ros::Duration(0.1).sleep();
-  }
-
-  ROS_INFO("...ok");
-
-  // Wait for 30s such that everything can settle and the mav flies to the initial position.
-  ros::Duration(8).sleep();
+void sendGlopalPath() {
+  std::vector<WaypointWithTime> waypoints;
+  getWaypoints(waypoints);
 
   ROS_INFO("Start publishing waypoints.");
 
@@ -170,9 +148,61 @@ int main(int argc, char** argv) {
     ROS_INFO("  TrajectoryTime: %lu", trajectory_point.time_from_start_ns);
   }
 
-
   wp_pub.publish(msg);
   printf("\n    Published \n");
+
+}
+
+int main(int argc, char** argv) {
+
+  ros::init(argc, argv, "waypoint_publisher");
+  ros::NodeHandle nh;
+
+  ROS_INFO("Started waypoint_publisher.");
+
+  ros::V_string args;
+  ros::removeROSArgs(argc, argv, args);
+
+  if (args.size() != 2 && args.size() != 3) {
+    ROS_ERROR("Usage: waypoint_publisher <waypoint_file>"
+        "\nThe waypoint file should be structured as: space separated: wait_time [s] x[m] y[m] z[m] yaw[deg])");
+    return -1;
+  }
+
+  inputFilePath = args.at(1);
+
+
+
+  // The IMU is used, to determine if the simulator is running or not.
+  ros::Subscriber sub = nh.subscribe("imu", 10, &callback);
+
+  wp_pub =
+      nh.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
+      mav_msgs::default_topics::COMMAND_TRAJECTORY, 10);
+
+  ROS_INFO("Wait for simulation to become ready...");
+
+  while (!sim_running && ros::ok()) {
+    ros::spinOnce();
+    ros::Duration(0.1).sleep();
+  }
+
+  ROS_INFO("...ok");
+
+  // Wait for 8s such that everything can settle and the mav flies to the initial position.
+  ros::Duration(8).sleep();
+
+  sendGlopalPath();
+
+  ros::Duration(20).sleep();
+
+  sendGlopalPath();
+
+
+  // wp_pub.publish(msg);
+  // printf("\n    Published2 \n");
+
+
 
   while (ros::ok()) {
     ros::spinOnce();
