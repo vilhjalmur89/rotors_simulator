@@ -25,80 +25,13 @@
 
 #include "rotors_control/parameters_ros.h"
 
-#include <queue>
-#include <map>
-#include <algorithm>    // std::reverse
+
  #include <tf/transform_listener.h> // getYaw
 
 
 
 namespace rotors_control {
 
-static const int64_t kNanoSecondsInSecond = 1000000000;
-
-class WaypointWithTime {
- public:
-  WaypointWithTime()
-      : waiting_time(0) {
-  }
-
-  WaypointWithTime(double t, float x, float y, float z, float _yaw)
-      : position(x, y, z), yaw(_yaw), waiting_time(t) {
-  }
-
-  Eigen::Vector3d position;
-  double yaw;
-  double waiting_time;
-};
-
-double angle(std::pair<int,int> pos, std::pair<int,int> p) {
-  int dx = p.first - pos.first;
-  int dy = p.second - pos.second;
-  if (dy == 0) {
-    return M_PI/2 - dx*(M_PI/2);
-  }
-  return dy*M_PI/2;
-}
-
-
-double between(double start, double end, int steps, int totalSteps) {
-  return start + (end - start) * steps / totalSteps;
-}
-
-WaypointWithTime getPointBetween(const WaypointWithTime & a, const WaypointWithTime & b, 
-                                 int step, int totalSteps, int minTime) {
-  double t = minTime;
-  double x = between(a.position[0], b.position[0], step, totalSteps);
-  double y = between(a.position[1], b.position[1], step, totalSteps);
-  double z = between(a.position[2], b.position[2], step, totalSteps);
-  double yaw = between(a.yaw, b.yaw, step, totalSteps);
-  return WaypointWithTime(t, x, y, z, yaw);
-}
-
-double squared(double x) {
-  return x * x;
-}
-
-double distance(const Eigen::Vector3d & a, const Eigen::Vector3d & b) {
-  double xDiff = a[0] - b[0];
-  double yDiff = a[1] - b[1];
-  double zDiff = a[2] - b[2];
-  return sqrt(squared(xDiff) + squared(yDiff) + squared(zDiff));
-}
-
-void increaseResolution(std::vector<WaypointWithTime> & waypoints, std::vector<WaypointWithTime> & newWaypoints, 
-                        double minDist, double minRot, double minTime) {
-
-  newWaypoints.push_back(waypoints[0]);
-  for (int i=1; i < waypoints.size(); ++i) {
-    double dist = distance(waypoints[i].position, waypoints[i-1].position);
-    double diffYaw = std::abs(waypoints[i].yaw - waypoints[i-1].yaw);
-    int factor = (int) std::max(dist / minDist, (diffYaw / minRot)) + 1;
-    for (int j=1; j <= factor; ++j) {
-      newWaypoints.push_back(getPointBetween(waypoints[i-1], waypoints[i], j, factor, minTime));
-    }
-  }
-}
 
 void getWaypointsFromMsg(
     const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg, std::vector<WaypointWithTime> & waypoints) {
@@ -108,64 +41,6 @@ void getWaypointsFromMsg(
     mav_msgs::eigenTrajectoryPointFromMsg(msg->points[i], &p);
     waypoints.push_back(WaypointWithTime(p.time_from_start_ns / 100, p.position_W[0], p.position_W[1], p.position_W[2], p.getYaw()));
   }
-}
-
-bool findPath(std::pair<int,int> s, std::pair<int,int> t, 
-              std::vector< std::pair<int,int> > & path, 
-              std::set< std::pair<int,int> > & occupied) {
-
-  ROS_INFO("Trying to find path from %d,%d to %d,%d", s.first, s.second, t.first, t.second);
-  std::map< std::pair<int,int>, std::pair<int,int> > parent;
-  std::set< std::pair<int,int> > seen;
-  std::queue< std::pair<int,int> > q;
-  q.push(s);
-
-  while (!q.empty()) {
-    std::pair<int,int> u = q.front();
-    q.pop();
-    if (seen.find(u) != seen.end()) {
-      continue;
-    }
-    seen.insert(u);
-    if (u == t) {
-      break;
-    }
-
-    std::vector< std::pair<int,int> > neighbors;
-    neighbors.push_back(std::make_pair(u.first-1, u.second));
-    neighbors.push_back(std::make_pair(u.first+1, u.second));
-    neighbors.push_back(std::make_pair(u.first, u.second-1));
-    neighbors.push_back(std::make_pair(u.first, u.second+1));
-
-    for (auto v : neighbors) {
-      if (occupied.find(v) == occupied.end() && seen.find(v) == seen.end()) {
-        parent[v] = u;
-
-        q.push(v);
-      }
-    }
-  }
-
-  if (seen.find(t) == seen.end()) {
-    ROS_INFO("  Failed to find a path");
-    return false;
-  }
-  std::pair<int, int> walker = t;
-  while (walker != s) {
-    ROS_INFO("%d,%d", walker.first, walker.second);
-    path.push_back(walker);
-    walker = parent[walker];
-  }
-  std::reverse(path.begin(),path.end());
-
-  // for (int i=0; i < path.size(); ++i) {
-  //   if (occupied.find(path[i]) != occupied.end()) {
-  //     path.resize(i);
-  //   }
-  // }
-
-  return true;
-
 }
 
 GlobalPlannerNode::GlobalPlannerNode() {
@@ -186,8 +61,6 @@ GlobalPlannerNode::GlobalPlannerNode() {
   cmd_multi_dof_joint_trajectory_pub_ = 
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
       mav_msgs::default_topics::COMMAND_TRAJECTORY, 10);
-
-    printf("\n    Planner Constructer \n");
 }
 
 GlobalPlannerNode::~GlobalPlannerNode() { }
@@ -198,54 +71,41 @@ void GlobalPlannerNode::Publish() {
 void GlobalPlannerNode::PositionCallback(
     const geometry_msgs::PoseStamped& msg) {
 
-  position = Eigen::Vector3d(msg.pose.position.x, msg.pose.position.y, msg.pose.position.z);
-  yaw = tf::getYaw(msg.pose.orientation);
+  global_planner.position = Eigen::Vector3d(msg.pose.position.x, msg.pose.position.y, msg.pose.position.z);
+  global_planner.yaw = tf::getYaw(msg.pose.orientation);
 }
 
 void GlobalPlannerNode::OctomapCallback(
     const visualization_msgs::MarkerArray& msg) {
 
-  occupied.clear();
-  ROS_INFO("  Num Points: %d", msg.markers[msg.markers.size()-1].points.size());
-  for (auto p : msg.markers[msg.markers.size()-1].points) {
-    occupied.insert(std::make_pair(p.x, p.y));
+  global_planner.occupied.clear();
+  bool pathIsBad = false;
+  for (auto point : msg.markers[msg.markers.size()-1].points) {
+    std::pair<int,int> cell(point.x, point.y);
+    global_planner.occupied.insert(cell);
+    if (global_planner.pathCells.find(cell) != global_planner.pathCells.end()) {
+      pathIsBad = true;
+    }
+  }
+  if (pathIsBad) {
+    ROS_INFO("  Path is bad, planning a new path");
+    waypoints.resize(0);
+    waypoints.push_back(goalCell);
+    PlanPathCallback();
   }
 }
 
 void GlobalPlannerNode::MultiDofJointTrajectoryCallback(
     const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg) {
 
-  ROS_INFO("   Current Position: %f, %f", position[0], position[1]);
-  std::vector<WaypointWithTime> waypoints;
-  waypoints.push_back(WaypointWithTime(0.0, position[0], position[1], position[2], yaw));
+  ROS_INFO("   Current Position: %f, %f", global_planner.position[0], global_planner.position[1]);
   getWaypointsFromMsg(msg, waypoints);
+  goalCell = waypoints[0];
+  PlanPathCallback();
+}
 
-  if (waypoints.size() == 2) {
-    std::pair<int,int> start = std::make_pair(waypoints[0].position[0], waypoints[0].position[1]);
-    std::pair<int,int> end = std::make_pair(waypoints[1].position[0], waypoints[1].position[1]);
-    std::vector< std::pair<int,int> > path;
-    findPath(start, end, path, occupied);
-    waypoints.resize(0);
-    waypoints.push_back(WaypointWithTime(0, position[0], position[1], position[2], yaw));
-    std::pair<int,int> pos = std::make_pair(position[0], position[1]);
-    for (int i=1; i < path.size(); ++i) {
-      auto p = path[i];
-      waypoints.push_back(WaypointWithTime(0, p.first+0.5-1, p.second+0.5-1, 2, angle(pos,p)+1.5));
-      ROS_INFO("p: %d, %d", p.first, p.second);
-      pos = p;
-    }
-    // waypoints.push_back(WaypointWithTime(0, path[path.size()-1].first+0.5, path[path.size()-1].second+0.5, 0, 0));
-
-  }
-
-
-
-  std::vector<WaypointWithTime> newWaypoints;
-  increaseResolution(waypoints, newWaypoints, 0.3, 0.05, 0.05 * kNanoSecondsInSecond);
-  waypoints = newWaypoints;
-
-
-
+void GlobalPlannerNode::PlanPathCallback() {
+  global_planner.getGlobalPath(waypoints);
 
   ROS_INFO("Start publishing endpoints.");
 

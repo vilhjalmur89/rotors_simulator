@@ -220,7 +220,7 @@ int main(int argc, char** argv) {
 
   for (int i=0; i < 100; ++i) {
     sendGlopalPath();
-    ros::Duration(1).sleep();
+    ros::Duration(100).sleep();
   }
 
 

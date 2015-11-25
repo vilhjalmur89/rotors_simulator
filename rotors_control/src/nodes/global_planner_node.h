@@ -37,7 +37,7 @@
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
 
 #include "rotors_control/common.h"
-#include "rotors_control/lee_position_controller.h"
+#include "rotors_control/global_planner.h"
 
 namespace rotors_control {
 
@@ -49,11 +49,11 @@ class GlobalPlannerNode {
   void Publish();
 
  private:
-
+  GlobalPlanner global_planner;
+  std::vector<WaypointWithTime> waypoints;
+  WaypointWithTime goalCell;
   std::string namespace_;
-  std::set< std::pair<int,int> > occupied;
-  Eigen::Vector3d position;
-  double yaw;
+
 
   // subscribers
   ros::Subscriber cmd_waypoint_sub_;
@@ -68,6 +68,8 @@ class GlobalPlannerNode {
 
   void OctomapCallback(
       const visualization_msgs::MarkerArray& msg);
+
+  void PlanPathCallback();
 
   void MultiDofJointTrajectoryCallback(
       const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& trajectory_reference_msg);
