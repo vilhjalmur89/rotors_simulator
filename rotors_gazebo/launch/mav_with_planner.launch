@@ -32,4 +32,20 @@
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
     <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
   </group>
+
+  <!-- OctoMap Server -->
+  <node pkg="octomap_server" type="octomap_server_node" name="octomap_server">
+    <param name="resolution" value="1" />
+    <!-- fixed map frame (set to 'map' if SLAM or localization running!) -->
+    <param name="frame_id" type="string" value="world" />
+    <!-- maximum range to integrate (speedup!) -->
+    <param name="sensor_model/max_range" value="5.0" />
+    <!-- Filter out obstacles which are lower than 1 meter -->
+    <param name="occupancy_min_z" value="1.0" />
+    <!-- data source to integrate (PointCloud2) -->
+    <remap from="cloud_in" to="/firefly/vi_sensor/camera_depth/depth/points" />
+  </node>
+
+  <!-- RViz -->
+  <node pkg="rviz" type="rviz" output="screen" name="rviz" args="home/vilhjalmur/PlannerWithOctomap.rviz" />
 </launch>

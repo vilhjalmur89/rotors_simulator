@@ -59,8 +59,10 @@ class GlobalPlannerNode {
   ros::Subscriber cmd_waypoint_sub_;
   ros::Subscriber cmd_octomap_sub_;
   ros::Subscriber cmd_ground_truth_sub_;
+  ros::Subscriber cmd_clicked_point_sub_;
 
   ros::Publisher cmd_multi_dof_joint_trajectory_pub_;
+  ros::Publisher cmd_global_path_pub_;
 
   void PositionCallback(
       const geometry_msgs::PoseStamped& msg);
@@ -73,6 +75,9 @@ class GlobalPlannerNode {
 
   void MultiDofJointTrajectoryCallback(
       const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& trajectory_reference_msg);
+
+  void ClickedPointCallback(
+      const geometry_msgs::PointStamped& msg);
 
 
 

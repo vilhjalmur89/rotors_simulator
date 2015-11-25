@@ -27,6 +27,8 @@
 
 
  #include <tf/transform_listener.h> // getYaw
+ #include <nav_msgs/Path.h>
+ #include <geometry_msgs/Quaternion.h>
 
 
 
@@ -58,9 +60,17 @@ GlobalPlannerNode::GlobalPlannerNode() {
       "ground_truth/pose", 1,
       &GlobalPlannerNode::PositionCallback, this);
 
+  cmd_clicked_point_sub_ = nh.subscribe(
+      "/clicked_point", 1,
+      &GlobalPlannerNode::ClickedPointCallback, this);
+
   cmd_multi_dof_joint_trajectory_pub_ = 
       nh.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
       mav_msgs::default_topics::COMMAND_TRAJECTORY, 10);
+
+  cmd_global_path_pub_ = 
+      nh.advertise<nav_msgs::Path>(
+      "global_path", 10);
 }
 
 GlobalPlannerNode::~GlobalPlannerNode() { }
@@ -73,6 +83,15 @@ void GlobalPlannerNode::PositionCallback(
 
   global_planner.position = Eigen::Vector3d(msg.pose.position.x, msg.pose.position.y, msg.pose.position.z);
   global_planner.yaw = tf::getYaw(msg.pose.orientation);
+}
+
+void GlobalPlannerNode::ClickedPointCallback(
+    const geometry_msgs::PointStamped& msg) {
+
+  goalCell = WaypointWithTime(0, msg.point.x, msg.point.y, msg.point.z, 0);
+  waypoints.resize(0);
+  waypoints.push_back(goalCell);
+  PlanPathCallback();
 }
 
 void GlobalPlannerNode::OctomapCallback(
@@ -113,6 +132,12 @@ void GlobalPlannerNode::PlanPathCallback() {
   newMsg.header.stamp = ros::Time::now();
   newMsg.points.resize(waypoints.size());
   newMsg.joint_names.push_back("base_link");
+
+  nav_msgs::Path path;
+  path.header.frame_id="/world";
+
+
+
   int64_t time_from_start_ns = 0;
   for (size_t i = 1; i < waypoints.size(); ++i) {
     WaypointWithTime& wp = waypoints[i];
@@ -125,9 +150,17 @@ void GlobalPlannerNode::PlanPathCallback() {
     time_from_start_ns += static_cast<int64_t>(wp.waiting_time);
 
     mav_msgs::msgMultiDofJointTrajectoryPointFromEigen(trajectory_point, &newMsg.points[i]);
+    
+    geometry_msgs::PoseStamped poseMsg;
+    poseMsg.header.frame_id="/world";
+    poseMsg.pose.position.x = wp.position[0];
+    poseMsg.pose.position.y = wp.position[1];
+    poseMsg.pose.position.z = wp.position[2];
+    path.poses.push_back(poseMsg);
   }
 
   cmd_multi_dof_joint_trajectory_pub_.publish(newMsg);
+  cmd_global_path_pub_.publish(path);
   printf("\n    Published Full Path \n");
 
 }
