@@ -218,23 +218,10 @@ int main(int argc, char** argv) {
   // Wait for 8s such that everything can settle and the mav flies to the initial position.
   ros::Duration(8).sleep();
 
-  for (int i=0; i < 100; ++i) {
-    sendGlopalPath();
-    ros::Duration(100).sleep();
-  }
+  ros::spin();
 
 
 
-
-  // wp_pub.publish(msg);
-  // printf("\n    Published2 \n");
-
-
-
-  while (ros::ok()) {
-    ros::spinOnce();
-    ros::Duration(0.1).sleep();
-  }
 
   return 0;
 }

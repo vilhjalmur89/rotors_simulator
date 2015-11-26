@@ -29,9 +29,9 @@ double angle(std::pair<int,int> pos, std::pair<int,int> p) {
   int dx = p.first - pos.first;
   int dy = p.second - pos.second;
   if (dy == 0) {
-    return M_PI/2 - dx*(M_PI/2);
+    return M_PI/2 - (dx/abs(dx))*(M_PI/2);
   }
-  return dy*M_PI/2;
+  return (dy/abs(dy))*M_PI/2;
 }
 
 
@@ -64,6 +64,7 @@ void increaseResolution(std::vector<WaypointWithTime> & waypoints, std::vector<W
                         double minDist, double minRot, double minTime) {
 
   newWaypoints.push_back(waypoints[0]);
+  ROS_INFO("0: %f, 1: %f", waypoints[0].yaw, waypoints[1].yaw);
   for (int i=1; i < waypoints.size(); ++i) {
     double dist = distance(waypoints[i].position, waypoints[i-1].position);
     double diffYaw = std::abs(waypoints[i].yaw - waypoints[i-1].yaw);
@@ -157,12 +158,12 @@ void GlobalPlanner::getGlobalPath(std::vector<WaypointWithTime> & waypoints) {
     waypoints[1] = waypoints[0];
     waypoints[0] = WaypointWithTime(0.0, position[0], position[1], position[2], yaw);
     // waypoints.push_back(WaypointWithTime(0.0, position[0], position[1], position[2], yaw));
-    std::pair<int,int> start = std::make_pair(waypoints[0].position[0], waypoints[0].position[1]);
-    std::pair<int,int> end = std::make_pair(waypoints[1].position[0], waypoints[1].position[1]);
+    std::pair<int,int> start = std::make_pair(floor(waypoints[0].position[0]), floor(waypoints[0].position[1]));
+    std::pair<int,int> end = std::make_pair(floor(waypoints[1].position[0]), floor(waypoints[1].position[1]));
     std::vector< std::pair<int,int> > path;
     FindPath(start, end, path, occupied);
     waypoints.resize(0);
-    waypoints.push_back(WaypointWithTime(0, position[0], position[1], position[2], 0));
+    waypoints.push_back(WaypointWithTime(0, position[0], position[1], position[2], yaw));
     std::pair<int,int> pos = std::make_pair(position[0], position[1]);
     for (int i=1; i < path.size(); ++i) {
       auto p = path[i];

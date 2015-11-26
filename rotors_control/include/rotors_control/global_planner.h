@@ -27,6 +27,7 @@
 #include <queue>
 #include <map>
 #include <algorithm>    // std::reverse
+#include <math.h>       // abs
 
 #include "rotors_control/common.h"
 #include "rotors_control/parameters.h"

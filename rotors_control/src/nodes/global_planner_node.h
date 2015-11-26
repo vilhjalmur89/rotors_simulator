@@ -52,6 +52,7 @@ class GlobalPlannerNode {
   GlobalPlanner global_planner;
   std::vector<WaypointWithTime> waypoints;
   WaypointWithTime goalCell;
+  geometry_msgs::Point goalPoint;
   std::string namespace_;
 
 

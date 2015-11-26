@@ -26,31 +26,18 @@
 #include "rotors_control/parameters_ros.h"
 
 
- #include <tf/transform_listener.h> // getYaw
- #include <nav_msgs/Path.h>
- #include <geometry_msgs/Quaternion.h>
-
+#include <tf/transform_listener.h> // getYaw
+#include <nav_msgs/Path.h>
+#include <geometry_msgs/Quaternion.h>
+#include <math.h> // floor
 
 
 namespace rotors_control {
 
 
-void getWaypointsFromMsg(
-    const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg, std::vector<WaypointWithTime> & waypoints) {
-
-  for (int i=0; i < msg->points.size(); ++i) {
-    mav_msgs::EigenTrajectoryPoint p;
-    mav_msgs::eigenTrajectoryPointFromMsg(msg->points[i], &p);
-    waypoints.push_back(WaypointWithTime(p.time_from_start_ns / 100, p.position_W[0], p.position_W[1], p.position_W[2], p.getYaw()));
-  }
-}
 
 GlobalPlannerNode::GlobalPlannerNode() {
   ros::NodeHandle nh;
-
-  cmd_waypoint_sub_ = nh.subscribe(
-      "GlobalPlannerTopic", 1,
-      &GlobalPlannerNode::MultiDofJointTrajectoryCallback, this);
 
   cmd_octomap_sub_ = nh.subscribe(
       "/occupied_cells_vis_array", 1,
@@ -83,12 +70,17 @@ void GlobalPlannerNode::PositionCallback(
 
   global_planner.position = Eigen::Vector3d(msg.pose.position.x, msg.pose.position.y, msg.pose.position.z);
   global_planner.yaw = tf::getYaw(msg.pose.orientation);
+  // if (global_planner.yaw < 0) {
+  //   global_planner.yaw += 2*M_PI;
+  // }
+  // ROS_INFO("%f", global_planner.yaw);
 }
 
 void GlobalPlannerNode::ClickedPointCallback(
     const geometry_msgs::PointStamped& msg) {
 
   goalCell = WaypointWithTime(0, msg.point.x, msg.point.y, msg.point.z, 0);
+  goalPoint = msg.point;
   waypoints.resize(0);
   waypoints.push_back(goalCell);
   PlanPathCallback();
@@ -100,7 +92,7 @@ void GlobalPlannerNode::OctomapCallback(
   global_planner.occupied.clear();
   bool pathIsBad = false;
   for (auto point : msg.markers[msg.markers.size()-1].points) {
-    std::pair<int,int> cell(point.x, point.y);
+    std::pair<int,int> cell(floor(point.x), floor(point.y));
     global_planner.occupied.insert(cell);
     if (global_planner.pathCells.find(cell) != global_planner.pathCells.end()) {
       pathIsBad = true;
@@ -114,14 +106,7 @@ void GlobalPlannerNode::OctomapCallback(
   }
 }
 
-void GlobalPlannerNode::MultiDofJointTrajectoryCallback(
-    const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& msg) {
 
-  ROS_INFO("   Current Position: %f, %f", global_planner.position[0], global_planner.position[1]);
-  getWaypointsFromMsg(msg, waypoints);
-  goalCell = waypoints[0];
-  PlanPathCallback();
-}
 
 void GlobalPlannerNode::PlanPathCallback() {
   global_planner.getGlobalPath(waypoints);
