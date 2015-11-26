@@ -23,11 +23,13 @@
 
 #include <mav_msgs/conversions.h>
 #include <mav_msgs/eigen_mav_msgs.h>
+#include <visualization_msgs/MarkerArray.h>
 
 #include <queue>
 #include <map>
 #include <algorithm>    // std::reverse
 #include <math.h>       // abs
+#include <tuple>
 
 #include "rotors_control/common.h"
 #include "rotors_control/parameters.h"
@@ -39,9 +41,11 @@ class WaypointWithTime {
   WaypointWithTime()
       : waiting_time(0) {
   }
-
   WaypointWithTime(double t, float x, float y, float z, float _yaw)
       : position(x, y, z), yaw(_yaw), waiting_time(t) {
+  }
+  WaypointWithTime(double t, Eigen::Vector3d pos, float _yaw)
+      : position(pos), yaw(_yaw), waiting_time(t) {
   }
 
   Eigen::Vector3d position;
@@ -49,29 +53,62 @@ class WaypointWithTime {
   double waiting_time;
 };
 
+class Cell {
+ public:
+  Cell()
+      : tpl(0,0,0) {
+  }
+  Cell(double x, double y)
+      : tpl(floor(x), floor(y), 0) {
+  }
+  Cell(double x, double y, double z)
+      : tpl(floor(x), floor(y), floor(z)) {
+  }
+  Cell(geometry_msgs::Point point)
+      : tpl(floor(point.x), floor(point.y), floor(point.z))  {
+  }
+
+  bool operator==(const Cell & other) const {
+    return this->tpl == other.tpl;
+  }
+
+  bool operator<(const Cell & other) const {
+    return this->tpl < other.tpl;
+  }
+
+  int x() {
+    return std::get<0>(tpl);
+  }
+  int y() {
+    return std::get<1>(tpl);
+  }
+  int z() {
+    return std::get<2>(tpl);
+  }
+
+  std::tuple<int, int, int> tpl;
+};
+
 class GlobalPlanner {
  public:
-  std::set< std::pair<int,int> > occupied;
-  std::set< std::pair<int,int> > pathCells;
-  Eigen::Vector3d position;
+  std::set<Cell> occupied;
+  std::set<Cell> pathCells;
+  std::vector<WaypointWithTime> waypoints;
+  geometry_msgs::Point currPos;
+  geometry_msgs::Point goalPos;
   double yaw;
 
   GlobalPlanner();
   ~GlobalPlanner();
-  void InitializeParameters();
-  void CalculateRotorVelocities(Eigen::VectorXd* rotor_velocities) const;
 
-  void getGlobalPath(std::vector<WaypointWithTime> & waypoints);
-  bool FindPath(std::pair<int,int> s, std::pair<int,int> t, 
-              std::vector< std::pair<int,int> > & path, 
-              std::set< std::pair<int,int> > & occupied);
-
-  void SetTrajectoryPoint(
-    const mav_msgs::EigenTrajectoryPoint& command_trajectory);
+  void setPose(geometry_msgs::Point newPos, double newYaw);
+  bool getGlobalPath();
+  void increaseResolution(double minDist, double minRot, double minTime);
+  bool updateOctomap(const visualization_msgs::MarkerArray& msg);
+  void getNeighbors(Cell cell, std::vector<Cell> & neighbors);
+  bool FindPath(std::vector<Cell> & path);
 
  private:
-  bool initialized_params_;
-  bool controller_active_;
   static const int64_t kNanoSecondsInSecond = 1000000000;
 
 

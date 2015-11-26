@@ -62,46 +62,27 @@ GlobalPlannerNode::GlobalPlannerNode() {
 
 GlobalPlannerNode::~GlobalPlannerNode() { }
 
-void GlobalPlannerNode::Publish() {
-}
 
 void GlobalPlannerNode::PositionCallback(
     const geometry_msgs::PoseStamped& msg) {
 
-  global_planner.position = Eigen::Vector3d(msg.pose.position.x, msg.pose.position.y, msg.pose.position.z);
+  global_planner.setPose(msg.pose.position, tf::getYaw(msg.pose.orientation));
+  global_planner.currPos = msg.pose.position;
   global_planner.yaw = tf::getYaw(msg.pose.orientation);
-  // if (global_planner.yaw < 0) {
-  //   global_planner.yaw += 2*M_PI;
-  // }
-  // ROS_INFO("%f", global_planner.yaw);
 }
 
 void GlobalPlannerNode::ClickedPointCallback(
     const geometry_msgs::PointStamped& msg) {
 
-  goalCell = WaypointWithTime(0, msg.point.x, msg.point.y, msg.point.z, 0);
-  goalPoint = msg.point;
-  waypoints.resize(0);
-  waypoints.push_back(goalCell);
+  global_planner.goalPos = msg.point;
   PlanPathCallback();
 }
 
 void GlobalPlannerNode::OctomapCallback(
     const visualization_msgs::MarkerArray& msg) {
 
-  global_planner.occupied.clear();
-  bool pathIsBad = false;
-  for (auto point : msg.markers[msg.markers.size()-1].points) {
-    std::pair<int,int> cell(floor(point.x), floor(point.y));
-    global_planner.occupied.insert(cell);
-    if (global_planner.pathCells.find(cell) != global_planner.pathCells.end()) {
-      pathIsBad = true;
-    }
-  }
-  if (pathIsBad) {
+  if (global_planner.updateOctomap(msg)) {
     ROS_INFO("  Path is bad, planning a new path");
-    waypoints.resize(0);
-    waypoints.push_back(goalCell);
     PlanPathCallback();
   }
 }
@@ -109,23 +90,22 @@ void GlobalPlannerNode::OctomapCallback(
 
 
 void GlobalPlannerNode::PlanPathCallback() {
-  global_planner.getGlobalPath(waypoints);
+  ROS_INFO("Start planning path.");
+  if (!global_planner.getGlobalPath()) {
+    ROS_INFO("Failed to find a path");
+    return;
+  }
 
-  ROS_INFO("Start publishing endpoints.");
 
   trajectory_msgs::MultiDOFJointTrajectory newMsg;
   newMsg.header.stamp = ros::Time::now();
-  newMsg.points.resize(waypoints.size());
   newMsg.joint_names.push_back("base_link");
 
   nav_msgs::Path path;
   path.header.frame_id="/world";
 
-
-
   int64_t time_from_start_ns = 0;
-  for (size_t i = 1; i < waypoints.size(); ++i) {
-    WaypointWithTime& wp = waypoints[i];
+  for (WaypointWithTime wp : global_planner.waypoints) {
 
     mav_msgs::EigenTrajectoryPoint trajectory_point;
     trajectory_point.position_W = wp.position;
@@ -134,7 +114,9 @@ void GlobalPlannerNode::PlanPathCallback() {
 
     time_from_start_ns += static_cast<int64_t>(wp.waiting_time);
 
-    mav_msgs::msgMultiDofJointTrajectoryPointFromEigen(trajectory_point, &newMsg.points[i]);
+    trajectory_msgs::MultiDOFJointTrajectoryPoint p;
+    mav_msgs::msgMultiDofJointTrajectoryPointFromEigen(trajectory_point, &p);
+    newMsg.points.push_back(p);
     
     geometry_msgs::PoseStamped poseMsg;
     poseMsg.header.frame_id="/world";
@@ -154,9 +136,7 @@ void GlobalPlannerNode::PlanPathCallback() {
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "global_planner_node");
-
   rotors_control::GlobalPlannerNode global_planner_node;
-
   ros::spin();
 
   return 0;
