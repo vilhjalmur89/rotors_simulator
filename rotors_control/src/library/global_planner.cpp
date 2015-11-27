@@ -32,12 +32,16 @@ public:
 
 
 double angle(Cell pos, Cell p) {
+  // Assumption: p is one of the eight neighboring cells of pos
   int dx = p.x() - pos.x();
   int dy = p.y() - pos.y();
-  if (dy == 0) {
-    return M_PI/2 - (dx/abs(dx))*(M_PI/2);
+  if (dy > 0) {
+    return M_PI/2 - M_PI/4 * dx;
   }
-  return (dy/abs(dy))*M_PI/2;
+  else if (dy < 0) {
+    return 3*M_PI/2 + M_PI/4 * dx;
+  }
+  return M_PI/2 - M_PI/2 * dx;
 }
 
 
@@ -79,7 +83,7 @@ bool GlobalPlanner::updateOctomap(const visualization_msgs::MarkerArray& msg) {
   occupied.clear();
   bool pathIsBad = false;
   for (auto point : msg.markers[msg.markers.size()-1].points) {   // TODO: Why the last markers
-    Cell cell(floor(point.x), floor(point.y), 0);
+    Cell cell(floor(point.x), floor(point.y), floor(point.z));
     occupied.insert(cell);
     if (pathCells.find(cell) != pathCells.end()) {
       pathIsBad = true;
@@ -106,21 +110,30 @@ void GlobalPlanner::increaseResolution(double minDist, double minRot, double min
 }
 
 void GlobalPlanner::getNeighbors(Cell cell, std::vector< std::pair<Cell, double> > & neighbors) {
-  neighbors.push_back(std::make_pair(Cell(cell.x()-1, cell.y()), 1.0));
-  neighbors.push_back(std::make_pair(Cell(cell.x()+1, cell.y()), 1.0));
-  neighbors.push_back(std::make_pair(Cell(cell.x(), cell.y()-1), 1.0));
-  neighbors.push_back(std::make_pair(Cell(cell.x(), cell.y()+1), 1.0));
-
-  neighbors.push_back(std::make_pair(Cell(cell.x()-1, cell.y()-1), 1.41));
-  neighbors.push_back(std::make_pair(Cell(cell.x()+1, cell.y()+1), 1.41));
-  neighbors.push_back(std::make_pair(Cell(cell.x()+1, cell.y()-1), 1.41));
-  neighbors.push_back(std::make_pair(Cell(cell.x()-1, cell.y()+1), 1.41));
+  // Right angle neighbors
+  double x = cell.x();
+  double y = cell.y();
+  double z = cell.z();
+  neighbors.push_back(std::make_pair(Cell(x-1, y, z), 1.0));
+  neighbors.push_back(std::make_pair(Cell(x+1, y, z), 1.0));
+  neighbors.push_back(std::make_pair(Cell(x, y-1, z), 1.0));
+  neighbors.push_back(std::make_pair(Cell(x, y+1, z), 1.0));
+  // Diagonal neighbors
+  neighbors.push_back(std::make_pair(Cell(x-1, y-1, z), 1.41));
+  neighbors.push_back(std::make_pair(Cell(x+1, y+1, z), 1.41));
+  neighbors.push_back(std::make_pair(Cell(x+1, y-1, z), 1.41));
+  neighbors.push_back(std::make_pair(Cell(x-1, y+1, z), 1.41));
+  // Vertical neighbors
+  neighbors.push_back(std::make_pair(Cell(x, y, z+1), 1.0));
+  if (z > 1) {
+    neighbors.push_back(std::make_pair(Cell(x, y, z-1), 1.0));
+  }
 }
 
 bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
 
-  Cell s = Cell(currPos.x, currPos.y, 0);
-  Cell t = Cell(goalPos.x, goalPos.y, 0);
+  Cell s = Cell(currPos);
+  Cell t = Cell(goalPos.x, goalPos.y, 2);
   ROS_INFO("Trying to find path from %d,%d to %d,%d", s.x(), s.y(), t.x(), t.y());
   std::map<Cell, Cell> parent;
   std::map<Cell, double> distance;
@@ -191,7 +204,7 @@ bool GlobalPlanner::getGlobalPath() {
   waypoints.push_back(WaypointWithTime(0, currPos.x, currPos.y, currPos.z, yaw));   
   for (int i=1; i < path.size(); ++i) {
     Cell p = path[i];
-    waypoints.push_back(WaypointWithTime(0, p.x()+0.5, p.y()+0.5, 2, angle(path[i-1],p)));
+    waypoints.push_back(WaypointWithTime(0, p.x()+0.5, p.y()+0.5, p.z()+0.5, angle(path[i-1],p)));
   }
   waypoints.push_back(WaypointWithTime(0, path[path.size()-1].x()+0.5-1, path[path.size()-1].y()+0.5-1, 0, 0));
 
