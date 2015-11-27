@@ -22,7 +22,13 @@
 
 namespace rotors_control {
 
-
+class CompareDist
+{
+public:
+    bool operator()(std::pair<Cell,double> n1,std::pair<Cell,double> n2) {
+        return n1.second>n2.second;
+    }
+};
 
 
 double angle(Cell pos, Cell p) {
@@ -99,11 +105,16 @@ void GlobalPlanner::increaseResolution(double minDist, double minRot, double min
   waypoints = newWaypoints;
 }
 
-void GlobalPlanner::getNeighbors(Cell cell, std::vector<Cell> & neighbors) {
-  neighbors.push_back(Cell(cell.x()-1, cell.y()));
-  neighbors.push_back(Cell(cell.x()+1, cell.y()));
-  neighbors.push_back(Cell(cell.x(), cell.y()-1));
-  neighbors.push_back(Cell(cell.x(), cell.y()+1));
+void GlobalPlanner::getNeighbors(Cell cell, std::vector< std::pair<Cell, double> > & neighbors) {
+  neighbors.push_back(std::make_pair(Cell(cell.x()-1, cell.y()), 1.0));
+  neighbors.push_back(std::make_pair(Cell(cell.x()+1, cell.y()), 1.0));
+  neighbors.push_back(std::make_pair(Cell(cell.x(), cell.y()-1), 1.0));
+  neighbors.push_back(std::make_pair(Cell(cell.x(), cell.y()+1), 1.0));
+
+  neighbors.push_back(std::make_pair(Cell(cell.x()-1, cell.y()-1), 1.41));
+  neighbors.push_back(std::make_pair(Cell(cell.x()+1, cell.y()+1), 1.41));
+  neighbors.push_back(std::make_pair(Cell(cell.x()+1, cell.y()-1), 1.41));
+  neighbors.push_back(std::make_pair(Cell(cell.x()-1, cell.y()+1), 1.41));
 }
 
 bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
@@ -112,13 +123,19 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   Cell t = Cell(goalPos.x, goalPos.y, 0);
   ROS_INFO("Trying to find path from %d,%d to %d,%d", s.x(), s.y(), t.x(), t.y());
   std::map<Cell, Cell> parent;
+  std::map<Cell, double> distance;
   std::set<Cell> seen;
-  std::queue<Cell> q;
-  q.push(s);
+  std::priority_queue< std::pair<Cell,double>, 
+                       std::vector< std::pair<Cell,double> >,
+                       CompareDist> pq;
+
+  pq.push(std::make_pair(s, 0.0));
+  distance[s] = 0.0;
   int count = 0;
-  while (!q.empty() && count++ < 100000) {
-    Cell u = q.front();
-    q.pop();
+  while (!pq.empty() && count++ < 100000) {
+    auto cellDistU = pq.top(); pq.pop();
+    Cell u = cellDistU.first;
+    double d = cellDistU.second;
     if (seen.find(u) != seen.end()) {
       continue;
     }
@@ -126,14 +143,21 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
     if (u.x() == t.x() && u.y() == t.y() && u.z() == t.z()) {
       break;
     }
-    std::vector<Cell> neighbors;
+    std::vector< std::pair<Cell, double> > neighbors;
     getNeighbors(u, neighbors);
 
-    for (auto v : neighbors) {
-      if (occupied.find(v) == occupied.end() && seen.find(v) == seen.end()) {
+    for (auto cellDistV : neighbors) {
+      Cell v = cellDistV.first;
+      double newDist = d + cellDistV.second;
+      double oldDist = 1000000.0;
+      if (distance.find(v) != distance.end()) {
+        oldDist = distance[v];
+      }
+      if (occupied.find(v) == occupied.end() && seen.find(v) == seen.end()
+          && newDist < oldDist) {
         parent[v] = u;
-
-        q.push(v);
+        distance[v] = newDist;
+        pq.push(std::make_pair(v, newDist));
       }
     }
   }

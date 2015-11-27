@@ -25,7 +25,7 @@
 #include <mav_msgs/eigen_mav_msgs.h>
 #include <visualization_msgs/MarkerArray.h>
 
-#include <queue>
+#include <queue>        // std::priority_queue
 #include <map>
 #include <algorithm>    // std::reverse
 #include <math.h>       // abs
@@ -105,17 +105,12 @@ class GlobalPlanner {
   bool getGlobalPath();
   void increaseResolution(double minDist, double minRot, double minTime);
   bool updateOctomap(const visualization_msgs::MarkerArray& msg);
-  void getNeighbors(Cell cell, std::vector<Cell> & neighbors);
+  void getNeighbors(Cell cell, std::vector< std::pair<Cell, double> > & neighbors);
   bool FindPath(std::vector<Cell> & path);
 
  private:
   static const int64_t kNanoSecondsInSecond = 1000000000;
 
-
-
-  void ComputeDesiredAngularAcc(const Eigen::Vector3d& acceleration,
-                                Eigen::Vector3d* angular_acceleration) const;
-  void ComputeDesiredAcceleration(Eigen::Vector3d* acceleration) const;
 };
 }
 
