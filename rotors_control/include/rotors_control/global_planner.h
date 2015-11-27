@@ -97,6 +97,8 @@ class GlobalPlanner {
   geometry_msgs::Point currPos;
   geometry_msgs::Point goalPos;
   double yaw;
+  double inf = 1000000000.0;
+  int maxIterations = 100000;
 
   GlobalPlanner();
   ~GlobalPlanner();

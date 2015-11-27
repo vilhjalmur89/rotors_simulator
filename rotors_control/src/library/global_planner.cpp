@@ -31,17 +31,27 @@ public:
 };
 
 
-double angle(Cell pos, Cell p) {
+double angle(Cell pos, Cell p, double lastAng) {
   // Assumption: p is one of the eight neighboring cells of pos
   int dx = p.x() - pos.x();
   int dy = p.y() - pos.y();
+  double ang;
   if (dy > 0) {
-    return M_PI/2 - M_PI/4 * dx;
+    ang = M_PI/2 - M_PI/4 * dx;
   }
   else if (dy < 0) {
-    return 3*M_PI/2 + M_PI/4 * dx;
+    ang = 3*M_PI/2 + M_PI/4 * dx;
   }
-  return M_PI/2 - M_PI/2 * dx;
+  else if (dx != 0){
+    ang = M_PI/2 - M_PI/2 * dx;     // Left or right
+  }
+  else {
+    ang = lastAng;                  // up
+  }
+  ang -= int(((ang+M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);
+  ang -= int(((ang-M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);
+  ROS_INFO("Ang: %f", ang);
+  return ang;
 }
 
 
@@ -124,7 +134,9 @@ void GlobalPlanner::getNeighbors(Cell cell, std::vector< std::pair<Cell, double>
   neighbors.push_back(std::make_pair(Cell(x+1, y-1, z), 1.41));
   neighbors.push_back(std::make_pair(Cell(x-1, y+1, z), 1.41));
   // Vertical neighbors
-  neighbors.push_back(std::make_pair(Cell(x, y, z+1), 1.0));
+  if (z < 10) {
+    neighbors.push_back(std::make_pair(Cell(x, y, z+1), 1.0));
+  }
   if (z > 1) {
     neighbors.push_back(std::make_pair(Cell(x, y, z-1), 1.0));
   }
@@ -145,7 +157,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   pq.push(std::make_pair(s, 0.0));
   distance[s] = 0.0;
   int count = 0;
-  while (!pq.empty() && count++ < 100000) {
+  while (!pq.empty() && count++ < maxIterations) {
     auto cellDistU = pq.top(); pq.pop();
     Cell u = cellDistU.first;
     double d = cellDistU.second;
@@ -162,7 +174,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
     for (auto cellDistV : neighbors) {
       Cell v = cellDistV.first;
       double newDist = d + cellDistV.second;
-      double oldDist = 1000000.0;
+      double oldDist = inf;
       if (distance.find(v) != distance.end()) {
         oldDist = distance[v];
       }
@@ -189,9 +201,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   }
   std::reverse(path.begin(),path.end());
   return true;
-
 }  
-
 
 bool GlobalPlanner::getGlobalPath() {
   std::vector<Cell> path;
@@ -202,11 +212,14 @@ bool GlobalPlanner::getGlobalPath() {
   waypoints.resize(0);
   // Use actual position instead of the center of the cell
   waypoints.push_back(WaypointWithTime(0, currPos.x, currPos.y, currPos.z, yaw));   
+  double lastYaw = yaw;
   for (int i=1; i < path.size(); ++i) {
     Cell p = path[i];
-    waypoints.push_back(WaypointWithTime(0, p.x()+0.5, p.y()+0.5, p.z()+0.5, angle(path[i-1],p)));
+    double newYaw = angle(path[i-1], p, lastYaw);
+    waypoints.push_back(WaypointWithTime(0, p.x()+0.5, p.y()+0.5, p.z()+0.5, newYaw));
+    lastYaw = newYaw;
   }
-  waypoints.push_back(WaypointWithTime(0, path[path.size()-1].x()+0.5-1, path[path.size()-1].y()+0.5-1, 0, 0));
+  waypoints.push_back(WaypointWithTime(0, path[path.size()-1].x()+0.5-1, path[path.size()-1].y()+0.5-1, 2, 0));
 
   increaseResolution(0.3, 0.05, 0.1 * kNanoSecondsInSecond);
   return true;
