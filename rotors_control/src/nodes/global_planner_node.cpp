@@ -43,6 +43,10 @@ GlobalPlannerNode::GlobalPlannerNode() {
       "/occupied_cells_vis_array", 1,
       &GlobalPlannerNode::OctomapCallback, this);
 
+  cmd_octomap_full_sub_ = nh.subscribe(
+      "/octomap_full", 1,
+      &GlobalPlannerNode::OctomapFullCallback, this);
+
   cmd_ground_truth_sub_ = nh.subscribe(
       "ground_truth/pose", 1,
       &GlobalPlannerNode::PositionCallback, this);
@@ -74,6 +78,12 @@ void GlobalPlannerNode::ClickedPointCallback(
 
   global_planner.goalPos = Cell(msg.point);
   PlanPathCallback();
+}
+
+void GlobalPlannerNode::OctomapFullCallback(
+    const octomap_msgs::Octomap& msg) {
+
+  // octomap::AbstractOcTree* tree = octomap_msgs::msgToMap(msg);
 }
 
 void GlobalPlannerNode::OctomapCallback(

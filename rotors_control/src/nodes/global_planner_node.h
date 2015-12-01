@@ -35,6 +35,10 @@
 #include <ros/callback_queue.h>
 #include <ros/ros.h>
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
+#include <octomap_msgs/conversions.h>
+#include <octomap/octomap.h>
+#include <octomap_msgs/Octomap.h>
+#include <octomap/OcTree.h>
 
 #include "rotors_control/common.h"
 #include "rotors_control/global_planner.h"
@@ -56,6 +60,7 @@ class GlobalPlannerNode {
   // subscribers
   ros::Subscriber cmd_waypoint_sub_;
   ros::Subscriber cmd_octomap_sub_;
+  ros::Subscriber cmd_octomap_full_sub_;
   ros::Subscriber cmd_ground_truth_sub_;
   ros::Subscriber cmd_clicked_point_sub_;
 
@@ -68,6 +73,9 @@ class GlobalPlannerNode {
 
   void OctomapCallback(
       const visualization_msgs::MarkerArray& msg);
+
+  void OctomapFullCallback(
+      const octomap_msgs::Octomap& msg);
 
   void PlanPathCallback();
 

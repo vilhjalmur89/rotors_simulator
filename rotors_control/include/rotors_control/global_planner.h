@@ -102,6 +102,9 @@ class GlobalPlanner {
   Cell goalPos;
   bool goingBack;
   double yaw;
+  double overEstimateFactor = 1.5;
+  int minHeight = 1;
+  int maxHeight = 10;
   double inf = 1000000000.0;
   int maxIterations = 100000;
 

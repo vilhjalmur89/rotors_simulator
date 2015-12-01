@@ -90,7 +90,7 @@ void GlobalPlanner::setPose(geometry_msgs::Point newPos, double newYaw) {
   currPos = newPos;
   yaw = newYaw;
   Cell currCell = Cell(currPos);
-  if (pathBack.size() == 0 || !(currCell == pathBack[pathBack.size()-1])) {
+  if (!goingBack && (pathBack.size() == 0 || !(currCell == pathBack[pathBack.size()-1]))) {
     pathBack.push_back(currCell);
   }
 }
@@ -199,17 +199,17 @@ void GlobalPlanner::getNeighbors(Cell cell, std::vector< std::pair<Cell, double>
     }
   }
   if (leftOpen) {
-    neighbors.push_back(std::make_pair(Cell(x, y-1, z), 1.0));
+    neighbors.push_back(std::make_pair(left, 1.0));
   }
   if (righOpen) {
-    neighbors.push_back(std::make_pair(Cell(x, y+1, z), 1.0));
+    neighbors.push_back(std::make_pair(righ, 1.0));
   }
 
   // Vertical neighbors
-  if (z < 10 && upOpen) {
+  if (z < maxHeight && upOpen) {
     neighbors.push_back(std::make_pair(up, 1.0));
   }
-  if (z > 1 && downOpen) {
+  if (z > minHeight && downOpen) {
     neighbors.push_back(std::make_pair(down, 1.0));
   }
 }
@@ -221,7 +221,11 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
 
   if (occupied.find(s) != occupied.end()) {
     ROS_INFO("Current position is occupied, going back");
-    return false;
+    goingBack = true;
+    for (int i=pathBack.size()-1; i > 0; i -= 2){
+      path.push_back(pathBack[i]);
+    }
+    return true;
   }
 
   ROS_INFO("Trying to find path from %d,%d to %d,%d", s.x(), s.y(), t.x(), t.y());
@@ -260,7 +264,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
           && newDist < oldDist) {
         parent[v] = u;
         distance[v] = newDist;
-        double heuristic = newDist + 2*distance2D(v, t);
+        double heuristic = newDist + overEstimateFactor*distance2D(v, t);
         pq.push(std::make_pair(v, heuristic));
       }
     }
@@ -293,13 +297,14 @@ bool GlobalPlanner::getGlobalPath() {
   // Use actual position instead of the center of the cell
   waypoints.push_back(WaypointWithTime(0, currPos.x, currPos.y, currPos.z, yaw));   
   double lastYaw = yaw;
-  for (int i=1; i < path.size(); ++i) {
+  path.push_back(path[path.size()-1]);
+  for (int i=1; i < path.size()-1; ++i) {
     Cell p = path[i];
-    double newYaw = angle(path[i-1], p, lastYaw);
+    double newYaw = angle(p, path[i+1], lastYaw);
     waypoints.push_back(WaypointWithTime(0, p.x()+0.5, p.y()+0.5, p.z()+0.5, newYaw));
     lastYaw = newYaw;
   }
-  waypoints.push_back(WaypointWithTime(0, path[path.size()-1].x()+0.5-1, path[path.size()-1].y()+0.5-1, 2, 0));
+  waypoints.push_back(WaypointWithTime(0, path[path.size()-1].x()+0.5, path[path.size()-1].y()+0.5, 2, 0));
 
   increaseResolution(0.3, 0.05, 0.1 * kNanoSecondsInSecond);
   return true;
