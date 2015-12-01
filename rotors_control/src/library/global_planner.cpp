@@ -50,7 +50,6 @@ double angle(Cell pos, Cell p, double lastAng) {
   }
   ang -= int(((ang+M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);
   ang -= int(((ang-M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);
-  ROS_INFO("Ang: %f", ang);
   return ang;
 }
 
@@ -80,12 +79,20 @@ double distance(const Eigen::Vector3d & a, const Eigen::Vector3d & b) {
   return sqrt(squared(xDiff) + squared(yDiff) + squared(zDiff));
 }
 
-GlobalPlanner::GlobalPlanner() {}
+double distance2D(const Cell & a, const Cell & b) {
+  return sqrt(squared(a.x() - b.x()) + squared(a.y() - b.y()));
+}
+
+GlobalPlanner::GlobalPlanner() : goingBack(false) {}
 GlobalPlanner::~GlobalPlanner() {}
 
 void GlobalPlanner::setPose(geometry_msgs::Point newPos, double newYaw) {
   currPos = newPos;
   yaw = newYaw;
+  Cell currCell = Cell(currPos);
+  if (pathBack.size() == 0 || !(currCell == pathBack[pathBack.size()-1])) {
+    pathBack.push_back(currCell);
+  }
 }
 
 bool GlobalPlanner::updateOctomap(const visualization_msgs::MarkerArray& msg) {
@@ -119,33 +126,104 @@ void GlobalPlanner::increaseResolution(double minDist, double minRot, double min
   waypoints = newWaypoints;
 }
 
+void GlobalPlanner::truncatePath() {
+  // std::vector<WaypointWithTime> newWaypoints;
+  // int currIndex = 0;
+  // for (int i=0; i < waypoints.size(); ++i) {
+  //   Cell c = Cell(waypoints[i].position);
+  //   if (c == Cell(currPos)) {
+  //     currIndex = i;
+  //     ROS_INFO("currIndex = %d", currIndex);
+  //     break;
+  //   }
+  //   if (occupied.find(c) != occupied.end()) {
+  //     return;
+  //   }
+  // }
+  // for (int i=currIndex+1; i < waypoints.size(); ++i) {
+  //   Cell c = Cell(waypoints[i].position);
+  //   if (occupied.find(c) != occupied.end()) {
+  //     return;
+  //   }
+  //   newWaypoints.push_back(waypoints[i]);
+  // }
+  // waypoints = newWaypoints;
+
+  pathCells.clear();
+  waypoints.resize(0);
+}
+
 void GlobalPlanner::getNeighbors(Cell cell, std::vector< std::pair<Cell, double> > & neighbors) {
   // Right angle neighbors
   double x = cell.x();
   double y = cell.y();
   double z = cell.z();
-  neighbors.push_back(std::make_pair(Cell(x-1, y, z), 1.0));
-  neighbors.push_back(std::make_pair(Cell(x+1, y, z), 1.0));
-  neighbors.push_back(std::make_pair(Cell(x, y-1, z), 1.0));
-  neighbors.push_back(std::make_pair(Cell(x, y+1, z), 1.0));
-  // Diagonal neighbors
-  neighbors.push_back(std::make_pair(Cell(x-1, y-1, z), 1.41));
-  neighbors.push_back(std::make_pair(Cell(x+1, y+1, z), 1.41));
-  neighbors.push_back(std::make_pair(Cell(x+1, y-1, z), 1.41));
-  neighbors.push_back(std::make_pair(Cell(x-1, y+1, z), 1.41));
-  // Vertical neighbors
-  if (z < 10) {
-    neighbors.push_back(std::make_pair(Cell(x, y, z+1), 1.0));
+  Cell forw = Cell(x+1, y, z);
+  Cell back = Cell(x-1, y, z);
+  Cell left = Cell(x, y-1, z);
+  Cell righ = Cell(x, y+1, z);
+  Cell forwLeft = Cell(x+1, y-1, z);
+  Cell forwRigh = Cell(x+1, y+1, z);
+  Cell backLeft = Cell(x-1, y-1, z);
+  Cell backRigh = Cell(x-1, y+1, z);
+  Cell up = Cell(x, y, z+1);
+  Cell down = Cell(x, y, z-1);
+
+  bool forwOpen = occupied.find(forw) == occupied.end();
+  bool backOpen = occupied.find(back) == occupied.end();
+  bool leftOpen = occupied.find(left) == occupied.end();
+  bool righOpen = occupied.find(righ) == occupied.end();
+  bool forwLeftOpen = occupied.find(forwLeft) == occupied.end();
+  bool forwRighOpen = occupied.find(forwRigh) == occupied.end();
+  bool backLeftOpen = occupied.find(backLeft) == occupied.end();
+  bool backRighOpen = occupied.find(backRigh) == occupied.end();
+  bool upOpen = occupied.find(up) == occupied.end();
+  bool downOpen = occupied.find(down) == occupied.end();
+
+  if (forwOpen) {
+    neighbors.push_back(std::make_pair(forw, 1.0));
+    if (leftOpen && forwLeftOpen) {
+      neighbors.push_back(std::make_pair(forwLeft, 1.41));
+    }
+    if (righOpen && forwRighOpen) {
+      neighbors.push_back(std::make_pair(forwRigh, 1.41));
+    }
   }
-  if (z > 1) {
-    neighbors.push_back(std::make_pair(Cell(x, y, z-1), 1.0));
+  if (backOpen) {
+    neighbors.push_back(std::make_pair(back, 1.0));
+    if (leftOpen && backLeftOpen) {
+      neighbors.push_back(std::make_pair(backLeft, 1.41));
+    }
+    if (righOpen && backRighOpen) {
+      neighbors.push_back(std::make_pair(backRigh, 1.41));
+    }
+  }
+  if (leftOpen) {
+    neighbors.push_back(std::make_pair(Cell(x, y-1, z), 1.0));
+  }
+  if (righOpen) {
+    neighbors.push_back(std::make_pair(Cell(x, y+1, z), 1.0));
+  }
+
+  // Vertical neighbors
+  if (z < 10 && upOpen) {
+    neighbors.push_back(std::make_pair(up, 1.0));
+  }
+  if (z > 1 && downOpen) {
+    neighbors.push_back(std::make_pair(down, 1.0));
   }
 }
 
 bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
 
   Cell s = Cell(currPos);
-  Cell t = Cell(goalPos.x, goalPos.y, 2);
+  Cell t = Cell(goalPos.x(), goalPos.y(), 2);
+
+  if (occupied.find(s) != occupied.end()) {
+    ROS_INFO("Current position is occupied, going back");
+    return false;
+  }
+
   ROS_INFO("Trying to find path from %d,%d to %d,%d", s.x(), s.y(), t.x(), t.y());
   std::map<Cell, Cell> parent;
   std::map<Cell, double> distance;
@@ -156,8 +234,8 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
 
   pq.push(std::make_pair(s, 0.0));
   distance[s] = 0.0;
-  int count = 0;
-  while (!pq.empty() && count++ < maxIterations) {
+  int numIter = 0;
+  while (!pq.empty() && numIter++ < maxIterations) {
     auto cellDistU = pq.top(); pq.pop();
     Cell u = cellDistU.first;
     double d = cellDistU.second;
@@ -182,7 +260,8 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
           && newDist < oldDist) {
         parent[v] = u;
         distance[v] = newDist;
-        pq.push(std::make_pair(v, newDist));
+        double heuristic = newDist + 2*distance2D(v, t);
+        pq.push(std::make_pair(v, heuristic));
       }
     }
   }
@@ -191,6 +270,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
     ROS_INFO("  Failed to find a path");
     return false;
   }
+  ROS_INFO("Found path with %d iterations", numIter);
 
   Cell walker = t;
   pathCells.clear();

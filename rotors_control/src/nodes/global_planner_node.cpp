@@ -67,14 +67,12 @@ void GlobalPlannerNode::PositionCallback(
     const geometry_msgs::PoseStamped& msg) {
 
   global_planner.setPose(msg.pose.position, tf::getYaw(msg.pose.orientation));
-  global_planner.currPos = msg.pose.position;
-  global_planner.yaw = tf::getYaw(msg.pose.orientation);
 }
 
 void GlobalPlannerNode::ClickedPointCallback(
     const geometry_msgs::PointStamped& msg) {
 
-  global_planner.goalPos = msg.point;
+  global_planner.goalPos = Cell(msg.point);
   PlanPathCallback();
 }
 
@@ -83,11 +81,14 @@ void GlobalPlannerNode::OctomapCallback(
 
   if (global_planner.updateOctomap(msg)) {
     ROS_INFO("  Path is bad, planning a new path");
-    PlanPathCallback();
+    global_planner.truncatePath();    // Cut off bad part of path
+    Cell tmp = global_planner.goalPos;
+    global_planner.goalPos = Cell(global_planner.currPos);
+    PublishPath();      
+    global_planner.goalPos = tmp;              // Publish cut-off path
+    PlanPathCallback();               // Plan a whole new path
   }
 }
-
-
 
 void GlobalPlannerNode::PlanPathCallback() {
   ROS_INFO("Start planning path.");
@@ -95,8 +96,10 @@ void GlobalPlannerNode::PlanPathCallback() {
     ROS_INFO("Failed to find a path");
     return;
   }
+  PublishPath();
+}
 
-
+void GlobalPlannerNode::PublishPath() {
   trajectory_msgs::MultiDOFJointTrajectory newMsg;
   newMsg.header.stamp = ros::Time::now();
   newMsg.joint_names.push_back("base_link");

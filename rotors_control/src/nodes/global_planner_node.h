@@ -71,6 +71,8 @@ class GlobalPlannerNode {
 
   void PlanPathCallback();
 
+  void PublishPath();
+
   void MultiDofJointTrajectoryCallback(
       const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& trajectory_reference_msg);
 

@@ -67,6 +67,9 @@ class Cell {
   Cell(geometry_msgs::Point point)
       : tpl(floor(point.x), floor(point.y), floor(point.z))  {
   }
+  Cell(Eigen::Vector3d point)
+      : tpl(floor(point[0]), floor(point[1]), floor(point[2]))  {
+  }
 
   bool operator==(const Cell & other) const {
     return this->tpl == other.tpl;
@@ -76,13 +79,13 @@ class Cell {
     return this->tpl < other.tpl;
   }
 
-  int x() {
+  int x() const {
     return std::get<0>(tpl);
   }
-  int y() {
+  int y() const {
     return std::get<1>(tpl);
   }
-  int z() {
+  int z() const {
     return std::get<2>(tpl);
   }
 
@@ -94,8 +97,10 @@ class GlobalPlanner {
   std::set<Cell> occupied;
   std::set<Cell> pathCells;
   std::vector<WaypointWithTime> waypoints;
+  std::vector<Cell> pathBack;
   geometry_msgs::Point currPos;
-  geometry_msgs::Point goalPos;
+  Cell goalPos;
+  bool goingBack;
   double yaw;
   double inf = 1000000000.0;
   int maxIterations = 100000;
@@ -107,6 +112,7 @@ class GlobalPlanner {
   bool getGlobalPath();
   void increaseResolution(double minDist, double minRot, double minTime);
   bool updateOctomap(const visualization_msgs::MarkerArray& msg);
+  void truncatePath();
   void getNeighbors(Cell cell, std::vector< std::pair<Cell, double> > & neighbors);
   bool FindPath(std::vector<Cell> & path);
 
