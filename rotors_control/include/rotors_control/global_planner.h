@@ -31,6 +31,11 @@
 #include <math.h>       // abs
 #include <tuple>
 
+#include <octomap_msgs/conversions.h>
+#include <octomap_msgs/Octomap.h>
+#include <octomap/octomap.h>
+#include <octomap/OcTree.h>
+
 #include "rotors_control/common.h"
 #include "rotors_control/parameters.h"
 
@@ -105,6 +110,8 @@ class GlobalPlanner {
   double overEstimateFactor = 1.5;
   int minHeight = 1;
   int maxHeight = 10;
+  double maxPathProb = 0.0;
+  double maxBailProb = 2.0;
   double inf = 1000000000.0;
   int maxIterations = 100000;
 
@@ -114,6 +121,7 @@ class GlobalPlanner {
   void setPose(geometry_msgs::Point newPos, double newYaw);
   bool getGlobalPath();
   void increaseResolution(double minDist, double minRot, double minTime);
+  bool updateFullOctomap(const octomap_msgs::Octomap& msg);
   bool updateOctomap(const visualization_msgs::MarkerArray& msg);
   void truncatePath();
   void getNeighbors(Cell cell, std::vector< std::pair<Cell, double> > & neighbors);

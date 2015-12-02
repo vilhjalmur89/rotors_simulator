@@ -36,8 +36,8 @@
 #include <ros/ros.h>
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
 #include <octomap_msgs/conversions.h>
-#include <octomap/octomap.h>
 #include <octomap_msgs/Octomap.h>
+#include <octomap/octomap.h>
 #include <octomap/OcTree.h>
 
 #include "rotors_control/common.h"
@@ -57,13 +57,14 @@ class GlobalPlannerNode {
   std::string namespace_;
 
 
-  // subscribers
+  // Subscribers
   ros::Subscriber cmd_waypoint_sub_;
   ros::Subscriber cmd_octomap_sub_;
   ros::Subscriber cmd_octomap_full_sub_;
   ros::Subscriber cmd_ground_truth_sub_;
   ros::Subscriber cmd_clicked_point_sub_;
 
+  // Publishers
   ros::Publisher cmd_multi_dof_joint_trajectory_pub_;
   ros::Publisher cmd_global_path_pub_;
 

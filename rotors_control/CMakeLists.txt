@@ -27,6 +27,11 @@ include_directories(
   ${Eigen_INCLUDE_DIRS}
 )
 
+find_package(octomap REQUIRED)
+include_directories(${OCTOMAP_INCLUDE_DIRS})
+link_libraries(${OCTOMAP_LIBRARIES})
+link_directories(${OCTOMAP_LIBRARY_DIRS})
+
 add_library(lee_position_controller
   src/library/lee_position_controller.cpp
 )
@@ -80,3 +85,4 @@ install(
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
   FILES_MATCHING PATTERN "*.h"
 )
+

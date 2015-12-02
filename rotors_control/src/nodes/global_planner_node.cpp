@@ -83,21 +83,30 @@ void GlobalPlannerNode::ClickedPointCallback(
 void GlobalPlannerNode::OctomapFullCallback(
     const octomap_msgs::Octomap& msg) {
 
-  // octomap::AbstractOcTree* tree = octomap_msgs::msgToMap(msg);
+  if (global_planner.updateFullOctomap(msg)) {
+    ROS_INFO("  Path is bad, planning a new path");
+    global_planner.truncatePath();             // Cut off bad part of path
+    Cell tmp = global_planner.goalPos;
+    global_planner.goalPos = Cell(global_planner.currPos);
+    PublishPath();      
+    global_planner.goalPos = tmp;              // Publish cut-off path
+    PlanPathCallback();                       // Plan a whole new path
+  }
+
 }
 
 void GlobalPlannerNode::OctomapCallback(
     const visualization_msgs::MarkerArray& msg) {
 
-  if (global_planner.updateOctomap(msg)) {
-    ROS_INFO("  Path is bad, planning a new path");
-    global_planner.truncatePath();    // Cut off bad part of path
-    Cell tmp = global_planner.goalPos;
-    global_planner.goalPos = Cell(global_planner.currPos);
-    PublishPath();      
-    global_planner.goalPos = tmp;              // Publish cut-off path
-    PlanPathCallback();               // Plan a whole new path
-  }
+  // if (global_planner.updateOctomap(msg)) {
+  //   ROS_INFO("  Path is bad, planning a new path");
+  //   global_planner.truncatePath();    // Cut off bad part of path
+  //   Cell tmp = global_planner.goalPos;
+  //   global_planner.goalPos = Cell(global_planner.currPos);
+  //   PublishPath();      
+  //   global_planner.goalPos = tmp;              // Publish cut-off path
+  //   PlanPathCallback();               // Plan a whole new path
+  // }
 }
 
 void GlobalPlannerNode::PlanPathCallback() {

@@ -95,6 +95,28 @@ void GlobalPlanner::setPose(geometry_msgs::Point newPos, double newYaw) {
   }
 }
 
+bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap& msg) {
+  // Returns false iff current path has an obstacle
+  bool pathIsBad = false;
+  occupied.clear();
+  octomap::AbstractOcTree* tree = octomap_msgs::msgToMap(msg);
+  octomap::OcTree* octree = dynamic_cast<octomap::OcTree*>(tree);
+  if (tree) {
+    for(octomap::OcTree::leaf_iterator it = octree->begin_leafs(), end=octree->end_leafs(); it!= end; ++it){
+      //manipulate node, e.g.:
+      Cell cell(it.getCoordinate().x(), it.getCoordinate().y(), it.getCoordinate().z());
+      double cellProb = it->getValue(); 
+      if (cellProb > maxPathProb) {
+        occupied.insert(cell);
+        if (cellProb > maxBailProb && pathCells.find(cell) != pathCells.end()) {
+          pathIsBad = true;
+        }
+      }
+    }
+  }
+  return pathIsBad;
+}
+
 bool GlobalPlanner::updateOctomap(const visualization_msgs::MarkerArray& msg) {
   // Returns false iff current path has an obstacle
   occupied.clear();
