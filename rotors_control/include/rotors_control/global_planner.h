@@ -99,7 +99,9 @@ class Cell {
 
 class GlobalPlanner {
  public:
+  octomap::OcTree* octree;
   std::set<Cell> occupied;
+  std::map<Cell, double> occProb;
   std::set<Cell> pathCells;
   std::vector<WaypointWithTime> waypoints;
   std::vector<Cell> pathBack;

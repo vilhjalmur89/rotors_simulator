@@ -100,12 +100,13 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap& msg) {
   bool pathIsBad = false;
   occupied.clear();
   octomap::AbstractOcTree* tree = octomap_msgs::msgToMap(msg);
-  octomap::OcTree* octree = dynamic_cast<octomap::OcTree*>(tree);
+  octree = dynamic_cast<octomap::OcTree*>(tree);
   if (tree) {
     for(octomap::OcTree::leaf_iterator it = octree->begin_leafs(), end=octree->end_leafs(); it!= end; ++it){
       //manipulate node, e.g.:
       Cell cell(it.getCoordinate().x(), it.getCoordinate().y(), it.getCoordinate().z());
       double cellProb = it->getValue(); 
+      occProb[cell] = cellProb;
       if (cellProb > maxPathProb) {
         occupied.insert(cell);
         if (cellProb > maxBailProb && pathCells.find(cell) != pathCells.end()) {
@@ -269,7 +270,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
       continue;
     }
     seen.insert(u);
-    if (u.x() == t.x() && u.y() == t.y() && u.z() == t.z()) {
+    if (u == t) {
       break;
     }
     std::vector< std::pair<Cell, double> > neighbors;
@@ -277,7 +278,11 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
 
     for (auto cellDistV : neighbors) {
       Cell v = cellDistV.first;
-      double newDist = d + cellDistV.second;
+      double risk = 5;
+      // if (occProb.find(v) != occProb.end()) {
+      //   risk = occProb[v] + 2.0;
+      // }
+      double newDist = d + cellDistV.second + risk;
       double oldDist = inf;
       if (distance.find(v) != distance.end()) {
         oldDist = distance[v];
