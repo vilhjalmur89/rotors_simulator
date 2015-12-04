@@ -237,17 +237,42 @@ void GlobalPlanner::getNeighbors(Cell cell, std::vector< std::pair<Cell, double>
   }
 }
 
+double GlobalPlanner::getRisk(Cell & cell) {
+  double risk = riskFactor * explorePenalty;
+  if (occProb.find(cell) != occProb.end()) {
+    risk = octomap::probability(occProb[cell]);
+  }
+  Cell front = Cell(cell.x()+1, cell.y(), cell.z());
+  Cell back = Cell(cell.x()-1, cell.y(), cell.z());
+  Cell right = Cell(cell.x(), cell.y()+1, cell.z());
+  Cell left = Cell(cell.x(), cell.y()-1, cell.z());
+  if (occProb.find(front) != occProb.end()) {
+    risk += octomap::probability(occProb[front]) / 2;
+  }
+  if (occProb.find(back) != occProb.end()) {
+    risk += octomap::probability(occProb[back]) / 2;
+  }
+  if (occProb.find(right) != occProb.end()) {
+    risk += octomap::probability(occProb[right]) / 2;
+  }
+  if (occProb.find(left) != occProb.end()) {
+    risk += octomap::probability(occProb[left]) / 2;
+  }
+  return risk;
+}
+
+
 bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
 
   Cell s = Cell(currPos);
   Cell t = Cell(goalPos.x(), goalPos.y(), 2);
 
   if (occupied.find(s) != occupied.end()) {
-    ROS_INFO("Current position is occupied, going back");
     goingBack = true;
-    for (int i=pathBack.size()-1; i > 0; i -= 1){
+    for (int i=pathBack.size()-1; i >= 0; i -= 2){
       path.push_back(pathBack[i]);
     }
+    ROS_INFO("Current position is occupied, going back. Path size is %d", path.size());
     return true;
   }
 
@@ -278,11 +303,8 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
 
     for (auto cellDistV : neighbors) {
       Cell v = cellDistV.first;
-      double risk = 5;
-      // if (occProb.find(v) != occProb.end()) {
-      //   risk = occProb[v] + 2.0;
-      // }
-      double newDist = d + cellDistV.second + risk;
+      double risk = getRisk(v);
+      double newDist = d + cellDistV.second + riskFactor * risk;
       double oldDist = inf;
       if (distance.find(v) != distance.end()) {
         oldDist = distance[v];
@@ -301,7 +323,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
     ROS_INFO("  Failed to find a path");
     return false;
   }
-  ROS_INFO("Found path with %d iterations", numIter);
+  ROS_INFO("Found path with %d iterations, iterations / distance squared: %f", numIter, numIter / (distance2D(s,t) * distance2D(s,t)));
 
   Cell walker = t;
   pathCells.clear();

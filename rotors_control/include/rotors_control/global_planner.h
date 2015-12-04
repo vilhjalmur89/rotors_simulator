@@ -26,7 +26,7 @@
 #include <visualization_msgs/MarkerArray.h>
 
 #include <queue>        // std::priority_queue
-#include <map>
+#include <unordered_map>
 #include <algorithm>    // std::reverse
 #include <math.h>       // abs
 #include <tuple>
@@ -114,7 +114,7 @@ class GlobalPlanner {
  public:
   octomap::OcTree* octree;
   std::set<Cell> occupied;
-  std::map<Cell, double> occProb; // TODO: Compare with hashmap
+  std::unordered_map<Cell, double, HashCell> occProb; // TODO: Compare with hashmap
   std::set<Cell> pathCells;
   std::vector<WaypointWithTime> waypoints;
   std::vector<Cell> pathBack;
@@ -124,11 +124,13 @@ class GlobalPlanner {
   double yaw;
   double overEstimateFactor = 1.5;
   int minHeight = 1;
-  int maxHeight = 10;
+  int maxHeight = 12;
   double maxPathProb = 0.0;
   double maxBailProb = 2.0;
   double inf = 1000000000.0;
   int maxIterations = 100000;
+  double riskFactor = 10.0;
+  double explorePenalty = 0.2;
 
   GlobalPlanner();
   ~GlobalPlanner();
@@ -140,6 +142,7 @@ class GlobalPlanner {
   bool updateOctomap(const visualization_msgs::MarkerArray& msg);
   void truncatePath();
   void getNeighbors(Cell cell, std::vector< std::pair<Cell, double> > & neighbors);
+  double getRisk(Cell & cell);
   bool FindPath(std::vector<Cell> & path);
 
  private:
