@@ -30,6 +30,7 @@
 #include <algorithm>    // std::reverse
 #include <math.h>       // abs
 #include <tuple>
+#include <string>
 
 #include <octomap_msgs/conversions.h>
 #include <octomap_msgs/Octomap.h>
@@ -57,6 +58,7 @@ class WaypointWithTime {
   double yaw;
   double waiting_time;
 };
+
 
 class Cell {
  public:
@@ -97,11 +99,22 @@ class Cell {
   std::tuple<int, int, int> tpl;
 };
 
+struct HashCell {
+    size_t operator()(const Cell &cell ) const
+    {
+        std::string s = "";
+        s += cell.x();
+        s += cell.y();
+        s += cell.z();
+        return std::hash<std::string>()(s);
+    }
+};
+
 class GlobalPlanner {
  public:
   octomap::OcTree* octree;
   std::set<Cell> occupied;
-  std::map<Cell, double> occProb;
+  std::map<Cell, double> occProb; // TODO: Compare with hashmap
   std::set<Cell> pathCells;
   std::vector<WaypointWithTime> waypoints;
   std::vector<Cell> pathBack;

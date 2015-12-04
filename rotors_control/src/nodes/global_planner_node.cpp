@@ -77,6 +77,7 @@ void GlobalPlannerNode::ClickedPointCallback(
     const geometry_msgs::PointStamped& msg) {
 
   global_planner.goalPos = Cell(msg.point);
+  global_planner.goingBack = false;
   PlanPathCallback();
 }
 

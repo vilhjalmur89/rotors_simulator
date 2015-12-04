@@ -120,16 +120,16 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap& msg) {
 
 bool GlobalPlanner::updateOctomap(const visualization_msgs::MarkerArray& msg) {
   // Returns false iff current path has an obstacle
-  occupied.clear();
-  bool pathIsBad = false;
-  for (auto point : msg.markers[msg.markers.size()-1].points) {   // TODO: Why the last markers
-    Cell cell(floor(point.x), floor(point.y), floor(point.z));
-    occupied.insert(cell);
-    if (pathCells.find(cell) != pathCells.end()) {
-      pathIsBad = true;
-    }
-  }
-  return pathIsBad;
+  // occupied.clear();
+  // bool pathIsBad = false;
+  // for (auto point : msg.markers[msg.markers.size()-1].points) {   // TODO: Why the last markers
+  //   Cell cell(floor(point.x), floor(point.y), floor(point.z));
+  //   occupied.insert(cell);
+  //   if (pathCells.find(cell) != pathCells.end()) {
+  //     pathIsBad = true;
+  //   }
+  // }
+  // return pathIsBad;
 }
 
 
@@ -245,7 +245,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   if (occupied.find(s) != occupied.end()) {
     ROS_INFO("Current position is occupied, going back");
     goingBack = true;
-    for (int i=pathBack.size()-1; i > 0; i -= 2){
+    for (int i=pathBack.size()-1; i > 0; i -= 1){
       path.push_back(pathBack[i]);
     }
     return true;
