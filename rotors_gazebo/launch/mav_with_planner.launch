@@ -5,7 +5,7 @@
   <arg name="log_file" default="$(arg mav_name)" />
 
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
-    <arg name="world_name" value="$(find rotors_gazebo)/worlds/test_city.world" />
+    <arg name="world_name" value="$(find rotors_gazebo)/worlds/powerplant.world" />
     <!-- <arg name="debug" value="true"/> -->
     <arg name="paused" value="true"/>
     <!-- <arg name="gui" value="false"/> -->
@@ -39,7 +39,7 @@
     <!-- fixed map frame (set to 'map' if SLAM or localization running!) -->
     <param name="frame_id" type="string" value="world" />
     <!-- maximum range to integrate (speedup!) -->
-    <param name="sensor_model/max_range" value="7.0" />
+    <param name="sensor_model/max_range" value="9.0" />
 
     <param name="latch" value="false" />
     <param name="sensor_model/hit" value="0.6" />

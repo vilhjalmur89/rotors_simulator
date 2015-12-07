@@ -122,14 +122,14 @@ class GlobalPlanner {
   Cell goalPos;
   bool goingBack;
   double yaw;
-  double overEstimateFactor = 1.2;
+  double overEstimateFactor = 1.0;
   int minHeight = 1;
   int maxHeight = 12;
-  double maxPathProb = 0.0;
+  double maxPathProb = -1.0;
   double maxBailProb = 2.0;
   double inf = 1000000000.0;
   int maxIterations = 100000;
-  double riskFactor = 10.0;
+  double riskFactor = 100.0;
   double explorePenalty = 0.2;
 
   GlobalPlanner();

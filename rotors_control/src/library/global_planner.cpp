@@ -238,7 +238,7 @@ void GlobalPlanner::getNeighbors(Cell cell, std::vector< std::pair<Cell, double>
 }
 
 double GlobalPlanner::getRisk(Cell & cell) {
-  double risk = riskFactor * explorePenalty;
+  double risk = explorePenalty;
   if (occProb.find(cell) != occProb.end()) {
     risk = octomap::probability(occProb[cell]);
   }
@@ -258,6 +258,9 @@ double GlobalPlanner::getRisk(Cell & cell) {
   if (occProb.find(left) != occProb.end()) {
     risk += octomap::probability(occProb[left]);
   }
+  double prior = (1.0 - (cell.z()/20.0));
+  // ROS_INFO("risk: %f \t prior: %f \n", risk, prior);
+  risk *= prior;
   return risk;
 }
 
