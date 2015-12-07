@@ -247,16 +247,16 @@ double GlobalPlanner::getRisk(Cell & cell) {
   Cell right = Cell(cell.x(), cell.y()+1, cell.z());
   Cell left = Cell(cell.x(), cell.y()-1, cell.z());
   if (occProb.find(front) != occProb.end()) {
-    risk += octomap::probability(occProb[front]) / 2;
+    risk += octomap::probability(occProb[front]);
   }
   if (occProb.find(back) != occProb.end()) {
-    risk += octomap::probability(occProb[back]) / 2;
+    risk += octomap::probability(occProb[back]);
   }
   if (occProb.find(right) != occProb.end()) {
-    risk += octomap::probability(occProb[right]) / 2;
+    risk += octomap::probability(occProb[right]);
   }
   if (occProb.find(left) != occProb.end()) {
-    risk += octomap::probability(occProb[left]) / 2;
+    risk += octomap::probability(occProb[left]);
   }
   return risk;
 }

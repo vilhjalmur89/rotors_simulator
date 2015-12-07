@@ -122,7 +122,7 @@ class GlobalPlanner {
   Cell goalPos;
   bool goingBack;
   double yaw;
-  double overEstimateFactor = 1.5;
+  double overEstimateFactor = 1.2;
   int minHeight = 1;
   int maxHeight = 12;
   double maxPathProb = 0.0;
