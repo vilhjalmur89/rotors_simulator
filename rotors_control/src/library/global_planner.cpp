@@ -100,10 +100,12 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap& msg) {
   bool pathIsBad = false;
   occupied.clear();
   octomap::AbstractOcTree* tree = octomap_msgs::msgToMap(msg);
-  octree = dynamic_cast<octomap::OcTree*>(tree);
+  octomap::OcTree* octree = dynamic_cast<octomap::OcTree*>(tree);
   if (tree) {
     for(octomap::OcTree::leaf_iterator it = octree->begin_leafs(), end=octree->end_leafs(); it!= end; ++it){
       //manipulate node, e.g.:
+
+      // TODO: Needs to a loop for large leafs
       Cell cell(it.getCoordinate().x(), it.getCoordinate().y(), it.getCoordinate().z());
       double cellProb = it->getValue(); 
       occProb[cell] = cellProb;
@@ -113,8 +115,13 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap& msg) {
           pathIsBad = true;
         }
       }
+      if (it.getSize() > 1) {
+        ROS_INFO("%d, %d, %d: %d %f", cell.x(), cell.y(), cell.z(), it.getSize(), it->getValue());
+      }
     }
   }
+  // free(tree);
+  free(octree);
   return pathIsBad;
 }
 
@@ -230,7 +237,7 @@ void GlobalPlanner::getNeighbors(Cell cell, std::vector< std::pair<Cell, double>
 
   // Vertical neighbors
   if (z < maxHeight && upOpen) {
-    neighbors.push_back(std::make_pair(up, 1.0));
+    neighbors.push_back(std::make_pair(up, 3.0));
   }
   if (z > minHeight && downOpen) {
     neighbors.push_back(std::make_pair(down, 1.0));

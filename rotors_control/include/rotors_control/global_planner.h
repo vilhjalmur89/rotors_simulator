@@ -25,12 +25,13 @@
 #include <mav_msgs/eigen_mav_msgs.h>
 #include <visualization_msgs/MarkerArray.h>
 
-#include <queue>        // std::priority_queue
-#include <unordered_map>
-#include <algorithm>    // std::reverse
-#include <math.h>       // abs
+#include <queue>            // std::priority_queue
+#include <unordered_map>  
+#include <algorithm>        // std::reverse
+#include <math.h>           // abs
 #include <tuple>
 #include <string>
+#include <limits>           // numeric_limits
 
 #include <octomap_msgs/conversions.h>
 #include <octomap_msgs/Octomap.h>
@@ -112,9 +113,9 @@ struct HashCell {
 
 class GlobalPlanner {
  public:
-  octomap::OcTree* octree;
+  // octomap::OcTree* octree;
   std::set<Cell> occupied;
-  std::unordered_map<Cell, double, HashCell> occProb; // TODO: Compare with hashmap
+  std::unordered_map<Cell, double, HashCell> occProb; // TODO: Compare map and unordered_map
   std::set<Cell> pathCells;
   std::vector<WaypointWithTime> waypoints;
   std::vector<Cell> pathBack;
@@ -127,9 +128,9 @@ class GlobalPlanner {
   int maxHeight = 12;
   double maxPathProb = -1.0;
   double maxBailProb = 2.0;
-  double inf = 1000000000.0;
+  double inf = std::numeric_limits<double>::infinity();
   int maxIterations = 100000;
-  double riskFactor = 100.0;
+  double riskFactor = 10.0;
   double explorePenalty = 0.2;
 
   GlobalPlanner();

@@ -5,7 +5,7 @@
   <arg name="log_file" default="$(arg mav_name)" />
 
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
-    <arg name="world_name" value="$(find rotors_gazebo)/worlds/powerplant.world" />
+    <arg name="world_name" value="$(find rotors_gazebo)/worlds/test_city.world" />
     <!-- <arg name="debug" value="true"/> -->
     <arg name="paused" value="true"/>
     <!-- <arg name="gui" value="false"/> -->
@@ -42,14 +42,17 @@
     <param name="sensor_model/max_range" value="9.0" />
 
     <param name="latch" value="false" />
+
+    <param name="sensor_model/min" value="0.0" />
+    <param name="sensor_model/max" value="1.0" />
     <param name="sensor_model/hit" value="0.6" />
     <param name="sensor_model/miss" value="0.4" />
     <!-- Filter out obstacles which are lower than 1 meter -->
     <param name="occupancy_min_z" value="1.0" />
     <!-- data source to integrate (PointCloud2) -->
-    <remap from="cloud_in" to="/firefly/vi_sensor/camera_depth/depth/points" />
+    <remap from="cloud_in" to="/firefly/vi_sensor/camera_depth/depth/points" respawn="true" />
   </node>
 
   <!-- RViz -->
-  <node pkg="rviz" type="rviz" output="screen" name="rviz" args="home/vilhjalmur/PlannerWithOctomap.rviz" />
+  <node pkg="rviz" type="rviz" output="screen" name="rviz" args="home/vilhjalmur/PlannerWithOctomap.rviz" respawn="true" />
 </launch>
