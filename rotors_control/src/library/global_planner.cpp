@@ -121,7 +121,7 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap& msg) {
     }
   }
   // free(tree);
-  free(octree);
+  delete octree;
   return pathIsBad;
 }
 
