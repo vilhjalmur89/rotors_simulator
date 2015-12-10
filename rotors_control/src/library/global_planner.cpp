@@ -120,7 +120,6 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap& msg) {
       }
     }
   }
-  // free(tree);
   delete octree;
   return pathIsBad;
 }
@@ -285,6 +284,10 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
     ROS_INFO("Current position is occupied, going back. Path size is %d", path.size());
     return true;
   }
+  if (occupied.find(t) != occupied.end()) {
+    ROS_INFO("Goal position is occupied");
+    return false;
+  }
 
   ROS_INFO("Trying to find path from %d,%d to %d,%d", s.x(), s.y(), t.x(), t.y());
   std::map<Cell, Cell> parent;
@@ -300,7 +303,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   while (!pq.empty() && numIter++ < maxIterations) {
     auto cellDistU = pq.top(); pq.pop();
     Cell u = cellDistU.first;
-    double d = cellDistU.second;
+    double d = distance[u];
     if (seen.find(u) != seen.end()) {
       continue;
     }
@@ -333,7 +336,6 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
     ROS_INFO("  Failed to find a path");
     return false;
   }
-  ROS_INFO("Found path with %d iterations, iterations / distance squared: %f", numIter, numIter / (distance2D(s,t) * distance2D(s,t)));
 
   Cell walker = t;
   pathCells.clear();
@@ -343,6 +345,9 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
     walker = parent[walker];
   }
   std::reverse(path.begin(),path.end());
+
+  ROS_INFO("Found path with %d iterations, iterations / distance squared: %f", numIter, numIter / squared(path.size()));
+  
   return true;
 }  
 

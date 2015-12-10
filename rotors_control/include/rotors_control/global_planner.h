@@ -123,15 +123,15 @@ class GlobalPlanner {
   Cell goalPos;
   bool goingBack;
   double yaw;
-  double overEstimateFactor = 1.0;
+  double overEstimateFactor = 2.0;
   int minHeight = 1;
   int maxHeight = 12;
   double maxPathProb = -1.0;
   double maxBailProb = 2.0;
   double inf = std::numeric_limits<double>::infinity();
   int maxIterations = 100000;
-  double riskFactor = 10.0;
-  double explorePenalty = 0.2;
+  double riskFactor = 2.0;
+  double explorePenalty = 0.1;
 
   GlobalPlanner();
   ~GlobalPlanner();
