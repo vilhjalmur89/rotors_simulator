@@ -114,6 +114,7 @@ struct HashCell {
 class GlobalPlanner {
  public:
   // octomap::OcTree* octree;
+  std::vector<double> heightPrior { 1.0, 1.0, 0.8, 0.8, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.1, 0.1, 0.1};
   std::set<Cell> occupied;
   std::unordered_map<Cell, double, HashCell> occProb; // TODO: Compare map and unordered_map
   std::set<Cell> pathCells;
@@ -132,19 +133,21 @@ class GlobalPlanner {
   int maxIterations = 100000;
   double riskFactor = 2.0;
   double explorePenalty = 0.1;
+  double upPenalty = 5;
 
   GlobalPlanner();
   ~GlobalPlanner();
 
   void setPose(geometry_msgs::Point newPos, double newYaw);
   bool getGlobalPath();
-  void increaseResolution(double minDist, double minRot, double minTime);
   bool updateFullOctomap(const octomap_msgs::Octomap& msg);
   bool updateOctomap(const visualization_msgs::MarkerArray& msg);
   void truncatePath();
+  void increaseResolution(double minDist, double minRot, double minTime);
   void getNeighbors(Cell cell, std::vector< std::pair<Cell, double> > & neighbors);
   double getRisk(Cell & cell);
   bool FindPath(std::vector<Cell> & path);
+
 
  private:
   static const int64_t kNanoSecondsInSecond = 1000000000;

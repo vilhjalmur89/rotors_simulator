@@ -142,6 +142,14 @@ bool GlobalPlanner::updateOctomap(const visualization_msgs::MarkerArray& msg) {
 void GlobalPlanner::increaseResolution(double minDist, double minRot, double minTime) {
 
   std::vector<WaypointWithTime> newWaypoints;
+  for (int i=0; i < waypoints.size()-1; i+=2) {
+    newWaypoints.push_back(waypoints[i]);
+  }
+  newWaypoints.push_back(waypoints[waypoints.size()-1]);
+  waypoints = newWaypoints;
+
+  newWaypoints.resize(0);
+
   // newWaypoints.push_back(waypoints[0]);
   ROS_INFO("0: %f, 1: %f", waypoints[0].yaw, waypoints[1].yaw);
   for (int i=1; i < waypoints.size(); ++i) {
@@ -236,7 +244,7 @@ void GlobalPlanner::getNeighbors(Cell cell, std::vector< std::pair<Cell, double>
 
   // Vertical neighbors
   if (z < maxHeight && upOpen) {
-    neighbors.push_back(std::make_pair(up, 3.0));
+    neighbors.push_back(std::make_pair(up, 1.0 + upPenalty));
   }
   if (z > minHeight && downOpen) {
     neighbors.push_back(std::make_pair(down, 1.0));
@@ -252,6 +260,8 @@ double GlobalPlanner::getRisk(Cell & cell) {
   Cell back = Cell(cell.x()-1, cell.y(), cell.z());
   Cell right = Cell(cell.x(), cell.y()+1, cell.z());
   Cell left = Cell(cell.x(), cell.y()-1, cell.z());
+  Cell up = Cell(cell.x(), cell.y(), cell.z()+1);
+  Cell down = Cell(cell.x(), cell.y(), cell.z()-1);
   if (occProb.find(front) != occProb.end()) {
     risk += octomap::probability(occProb[front]);
   }
@@ -264,10 +274,15 @@ double GlobalPlanner::getRisk(Cell & cell) {
   if (occProb.find(left) != occProb.end()) {
     risk += octomap::probability(occProb[left]);
   }
-  double prior = (1.0 - (cell.z()/20.0));
+  if (occProb.find(up) != occProb.end()) {
+    risk += octomap::probability(occProb[up]);
+  }
+  if (occProb.find(down) != occProb.end()) {
+    risk += octomap::probability(occProb[down]);
+  }
+  double prior = heightPrior[floor(cell.z())];
   // ROS_INFO("risk: %f \t prior: %f \n", risk, prior);
-  risk *= prior;
-  return risk;
+  return risk * prior;
 }
 
 
