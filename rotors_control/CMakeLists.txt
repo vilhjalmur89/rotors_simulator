@@ -6,19 +6,19 @@ add_definitions(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   mav_msgs
-  nav_msgs
   roscpp
   sensor_msgs
   cmake_modules
+  glog_catkin
 )
 
 find_package(Eigen REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include ${Eigen_INCLUDE_DIRS}
-  LIBRARIES lee_position_controller global_planner roll_pitch_yawrate_thrust_controller
-  CATKIN_DEPENDS geometry_msgs mav_msgs nav_msgs roscpp sensor_msgs
-  DEPENDS Eigen
+  LIBRARIES lee_position_controller roll_pitch_yawrate_thrust_controller
+  CATKIN_DEPENDS geometry_msgs mav_msgs roscpp sensor_msgs
+  DEPENDS Eigen glog_catkin
 )
 
 include_directories(
@@ -27,17 +27,8 @@ include_directories(
   ${Eigen_INCLUDE_DIRS}
 )
 
-find_package(octomap REQUIRED)
-include_directories(${OCTOMAP_INCLUDE_DIRS})
-link_libraries(${OCTOMAP_LIBRARIES})
-link_directories(${OCTOMAP_LIBRARY_DIRS})
-
 add_library(lee_position_controller
   src/library/lee_position_controller.cpp
-)
-
-add_library(global_planner
-  src/library/global_planner.cpp
 )
 
 add_library(roll_pitch_yawrate_thrust_controller
@@ -47,9 +38,6 @@ add_library(roll_pitch_yawrate_thrust_controller
 target_link_libraries(lee_position_controller ${catkin_LIBRARIES})
 add_dependencies(lee_position_controller ${catkin_EXPORTED_TARGETS})
 
-target_link_libraries(global_planner ${catkin_LIBRARIES})
-add_dependencies(global_planner ${catkin_EXPORTED_TARGETS})
-
 target_link_libraries(roll_pitch_yawrate_thrust_controller ${catkin_LIBRARIES})
 add_dependencies(roll_pitch_yawrate_thrust_controller ${catkin_EXPORTED_TARGETS})
 
@@ -58,31 +46,8 @@ add_dependencies(lee_position_controller_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(lee_position_controller_node
   lee_position_controller ${catkin_LIBRARIES})
 
-# <Global Planner Node>
-add_executable(global_planner_node src/nodes/global_planner_node.cpp)
-add_dependencies(global_planner_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(global_planner_node
-  global_planner ${catkin_LIBRARIES})
-
 add_executable(roll_pitch_yawrate_thrust_controller_node
   src/nodes/roll_pitch_yawrate_thrust_controller_node.cpp)
 add_dependencies(roll_pitch_yawrate_thrust_controller_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(roll_pitch_yawrate_thrust_controller_node
   roll_pitch_yawrate_thrust_controller ${catkin_LIBRARIES})
-
-install(TARGETS lee_position_controller roll_pitch_yawrate_thrust_controller
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-)
-
-install(TARGETS lee_position_controller_node global_planner_node roll_pitch_yawrate_thrust_controller_node
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
-install(
-  DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  FILES_MATCHING PATTERN "*.h"
-)
-

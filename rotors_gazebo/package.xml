@@ -1,9 +1,9 @@
 <package>
   <name>rotors_gazebo</name>
-  <version>2.0.1</version>
+  <version>1.0.0</version>
   <description>The rotors_gazebo package</description>
 
-  <maintainer email="fadri.furrer@mavt.ethz.ch">Fadri Furrer</maintainer>
+  <maintainer email="markus.achtelik_devel@mavt.ethz.ch">Markus Achtelik</maintainer>
 
   <author>Fadri Furrer</author>
   <author>Michael Burri</author>
@@ -12,9 +12,6 @@
   <author>Markus Achtelik</author>
 
   <license>ASL 2.0</license>
-
-  <url type="website">https://github.com/ethz-asl/rotors_simulator</url>
-  <url type="bugtracker">https://github.com/ethz-asl/rotors_simulator/issues</url>
 
   <buildtool_depend>catkin</buildtool_depend>
 
@@ -26,7 +23,6 @@
   <build_depend>geometry_msgs</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>sensor_msgs</build_depend>
-  <build_depend>octomap</build_depend>
 
   <!-- Dependencies needed after this package is compiled. -->
   <run_depend>gazebo_plugins</run_depend>
@@ -36,6 +32,5 @@
   <run_depend>geometry_msgs</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>sensor_msgs</run_depend>
-  <run_depend>octomap</run_depend>
 
 </package>

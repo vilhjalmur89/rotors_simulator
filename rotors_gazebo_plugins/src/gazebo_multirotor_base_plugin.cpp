@@ -22,7 +22,7 @@
 
 #include <ctime>
 
-#include <mav_msgs/Actuators.h>
+#include <mav_msgs/MotorSpeed.h>
 
 namespace gazebo {
 
@@ -46,8 +46,7 @@ void GazeboMultirotorBasePlugin::Load(physics::ModelPtr _model, sdf::ElementPtr 
                       rotor_velocity_slowdown_sim_);
 
   node_handle_ = new ros::NodeHandle(namespace_);
-  motor_pub_ = node_handle_->advertise<mav_msgs::Actuators>(motor_pub_topic_, 10);
-  joint_state_pub_ = node_handle_->advertise<sensor_msgs::JointState>(joint_state_pub_topic_, 1);
+  motor_pub_ = node_handle_->advertise<mav_msgs::MotorSpeed>(motor_pub_topic_, 10);
   frame_id_ = link_name_;
 
   link_ = model_->GetLink(link_name_);
@@ -79,25 +78,18 @@ void GazeboMultirotorBasePlugin::Load(physics::ModelPtr _model, sdf::ElementPtr 
 void GazeboMultirotorBasePlugin::OnUpdate(const common::UpdateInfo& _info) {
   // Get the current simulation time.
   common::Time now = world_->GetSimTime();
-  mav_msgs::ActuatorsPtr msg(new mav_msgs::Actuators);
-  msg->angular_velocities.resize(motor_joints_.size());
-  sensor_msgs::JointStatePtr joint_state_msg(new sensor_msgs::JointState);
-  joint_state_msg->name.resize(motor_joints_.size());
-  joint_state_msg->position.resize(motor_joints_.size());
+  mav_msgs::MotorSpeedPtr msg(new mav_msgs::MotorSpeed);
+  msg->motor_speed.resize(motor_joints_.size());
+
   MotorNumberToJointMap::iterator m;
   for (m = motor_joints_.begin(); m != motor_joints_.end(); ++m) {
     double motor_rot_vel = m->second->GetVelocity(0) * rotor_velocity_slowdown_sim_;
-    msg->angular_velocities[m->first] = motor_rot_vel;
-    joint_state_msg->name[m->first] = m->second->GetName();
-    joint_state_msg->position[m->first] = m->second->GetAngle(0).Radian();
+    msg->motor_speed[m->first] = motor_rot_vel;
   }
-  joint_state_msg->header.stamp.sec = now.sec;
-  joint_state_msg->header.stamp.nsec = now.nsec;
-  joint_state_msg->header.frame_id = frame_id_;
   msg->header.stamp.sec = now.sec;
   msg->header.stamp.nsec = now.nsec;
   msg->header.frame_id = frame_id_;
-  joint_state_pub_.publish(joint_state_msg);
+
   motor_pub_.publish(msg);
 }
 
