@@ -16,7 +16,7 @@ find_package(Eigen REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include ${Eigen_INCLUDE_DIRS}
-  LIBRARIES lee_position_controller roll_pitch_yawrate_thrust_controller
+  LIBRARIES lee_position_controller global_planner roll_pitch_yawrate_thrust_controller
   CATKIN_DEPENDS geometry_msgs mav_msgs roscpp sensor_msgs
   DEPENDS Eigen glog_catkin
 )
@@ -27,8 +27,17 @@ include_directories(
   ${Eigen_INCLUDE_DIRS}
 )
 
+find_package(octomap REQUIRED)
+include_directories(${OCTOMAP_INCLUDE_DIRS})
+link_libraries(${OCTOMAP_LIBRARIES})
+link_directories(${OCTOMAP_LIBRARY_DIRS})
+
 add_library(lee_position_controller
   src/library/lee_position_controller.cpp
+)
+
+add_library(global_planner
+  src/library/global_planner.cpp
 )
 
 add_library(roll_pitch_yawrate_thrust_controller
@@ -38,6 +47,9 @@ add_library(roll_pitch_yawrate_thrust_controller
 target_link_libraries(lee_position_controller ${catkin_LIBRARIES})
 add_dependencies(lee_position_controller ${catkin_EXPORTED_TARGETS})
 
+target_link_libraries(global_planner ${catkin_LIBRARIES})
+add_dependencies(global_planner ${catkin_EXPORTED_TARGETS})
+
 target_link_libraries(roll_pitch_yawrate_thrust_controller ${catkin_LIBRARIES})
 add_dependencies(roll_pitch_yawrate_thrust_controller ${catkin_EXPORTED_TARGETS})
 
@@ -45,6 +57,18 @@ add_executable(lee_position_controller_node src/nodes/lee_position_controller_no
 add_dependencies(lee_position_controller_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(lee_position_controller_node
   lee_position_controller ${catkin_LIBRARIES})
+
+# <Global Planner Node>
+add_executable(global_planner_node src/nodes/global_planner_node.cpp)
+add_dependencies(global_planner_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(global_planner_node
+  global_planner ${catkin_LIBRARIES})
+
+# <Repeat Setpoint Node>
+add_executable(repeat_setpoint_node src/nodes/repeat_setpoint_node.cpp)
+add_dependencies(repeat_setpoint_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(repeat_setpoint_node
+  ${catkin_LIBRARIES})
 
 add_executable(roll_pitch_yawrate_thrust_controller_node
   src/nodes/roll_pitch_yawrate_thrust_controller_node.cpp)
