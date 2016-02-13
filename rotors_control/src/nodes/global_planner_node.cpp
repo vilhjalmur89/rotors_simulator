@@ -24,7 +24,6 @@
 #include "global_planner_node.h"
 
 #include "rotors_control/parameters_ros.h"
-#include <mav_msgs/functions_from_asl.h>
 
 
 #include <tf/transform_listener.h> // getYaw
@@ -140,16 +139,16 @@ void GlobalPlannerNode::PublishPath() {
   int64_t time_from_start_ns = 0;
   for (WaypointWithTime wp : global_planner.waypoints) {
 
-    mav_msgs::EigenTrajectoryPoint trajectory_point;
-    trajectory_point.position_W = wp.position;
-    trajectory_point.setFromYaw(wp.yaw);
-    trajectory_point.time_from_start_ns = time_from_start_ns;
+    // mav_msgs::EigenTrajectoryPoint trajectory_point;
+    // trajectory_point.position_W = wp.position;
+    // trajectory_point.setFromYaw(wp.yaw);
+    // trajectory_point.time_from_start_ns = time_from_start_ns;
 
-    time_from_start_ns += static_cast<int64_t>(wp.waiting_time);
+    // time_from_start_ns += static_cast<int64_t>(wp.waiting_time);
 
-    trajectory_msgs::MultiDOFJointTrajectoryPoint p;
-    mav_msgs::msgMultiDofJointTrajectoryPointFromEigen(trajectory_point, &p);
-    newMsg.points.push_back(p);
+    // trajectory_msgs::MultiDOFJointTrajectoryPoint p;
+    // mav_msgs::msgMultiDofJointTrajectoryPointFromEigen(trajectory_point, &p);
+    // newMsg.points.push_back(p);
     
     geometry_msgs::PoseStamped poseMsg;
     poseMsg.header.frame_id="/world";
@@ -159,10 +158,10 @@ void GlobalPlannerNode::PublishPath() {
     // poseMsg.pose.orientation = mav_msgs::quaternionFromYaw(wp.yaw);
     path.poses.push_back(poseMsg);
 
-    mav_msgs::CommandTrajectory px4Msg;
-    px4Msg.position.x = wp.position[0];
-    px4Msg.position.y = wp.position[1];
-    px4Msg.position.z = wp.position[2];
+    // mav_msgs::CommandTrajectory px4Msg;
+    // px4Msg.position.x = wp.position[0];
+    // px4Msg.position.y = wp.position[1];
+    // px4Msg.position.z = wp.position[2];
 
     // for (int i=0; i < 10000000; ++i) {
     //   mavros_waypoint_publisher.publish(poseMsg);
