@@ -38,9 +38,9 @@ namespace rotors_control {
 GlobalPlannerNode::GlobalPlannerNode() {
   ros::NodeHandle nh;
 
-  cmd_octomap_sub_ = nh.subscribe(
-      "/occupied_cells_vis_array", 1,
-      &GlobalPlannerNode::OctomapCallback, this);
+  // cmd_octomap_sub_ = nh.subscribe(
+  //     "/occupied_cells_vis_array", 1,
+  //     &GlobalPlannerNode::OctomapCallback, this);
 
   cmd_octomap_full_sub_ = nh.subscribe(
       "/octomap_full", 1,
@@ -54,17 +54,17 @@ GlobalPlannerNode::GlobalPlannerNode() {
       "/clicked_point", 1,
       &GlobalPlannerNode::ClickedPointCallback, this);
 
-  cmd_multi_dof_joint_trajectory_pub_ = 
-      nh.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
-      "/command/trajectory", 10);
+  // cmd_multi_dof_joint_trajectory_pub_ = 
+  //     nh.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
+  //     "/command/trajectory", 10);
 
   // lee_controler_publisher
   // wp_pub = nh.advertise<mav_msgs::CommandTrajectory>("/command/trajectory", 10);
   // Mavros publisher
-  mavros_waypoint_publisher = nh.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
+  // mavros_waypoint_publisher = nh.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
 
-  // Repeat setpoint publisher
-  repeat_setpoint_publisher = nh.advertise<geometry_msgs::PoseStamped>("/repeat_setpoint", 10);
+  // Publish one setpoint to path_handler_node
+  // path_handler_publisher = nh.advertise<geometry_msgs::PoseStamped>("/path_setpoint", 10);
 
   cmd_global_path_pub_ = 
       nh.advertise<nav_msgs::Path>(
@@ -167,7 +167,7 @@ void GlobalPlannerNode::PublishPath() {
     //   mavros_waypoint_publisher.publish(poseMsg);
     // }
     // wp_pub.publish(px4Msg);
-    // repeat_setpoint_publisher.publish(poseMsg);
+    // path_handler_publisher.publish(poseMsg);
     // ros::Duration(wp.waiting_time).sleep();
   }
 

@@ -1,16 +1,16 @@
 #include <ros/ros.h>
 
-#include "repeat_setpoint_node.h"
+#include "path_handler_node.h"
 
 namespace rotors_control {
 
-RepeatSetpointNode::RepeatSetpointNode() {
+PathHandlerNode::PathHandlerNode() {
 
   ros::NodeHandle nh;
 
-  // cmd_trajectory_sub_ = nh.subscribe("/repeat_setpoint", 1, &RepeatSetpointNode::ReceiveMessage, this);
-  cmd_trajectory_sub_ = nh.subscribe("/global_path", 1, &RepeatSetpointNode::ReceivePath, this);
-  cmd_ground_truth_sub_ = nh.subscribe("/mavros/local_position/pose", 1, &RepeatSetpointNode::PositionCallback, this);
+  // cmd_trajectory_sub_ = nh.subscribe("/path_setpoint", 1, &PathHandlerNode::ReceiveMessage, this);
+  cmd_trajectory_sub_ = nh.subscribe("/global_path", 1, &PathHandlerNode::ReceivePath, this);
+  cmd_ground_truth_sub_ = nh.subscribe("/mavros/local_position/pose", 1, &PathHandlerNode::PositionCallback, this);
 
   mavros_waypoint_publisher = nh.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
 
@@ -28,10 +28,10 @@ RepeatSetpointNode::RepeatSetpointNode() {
   }
 }
 
-RepeatSetpointNode::~RepeatSetpointNode() { }
+PathHandlerNode::~PathHandlerNode() { }
 
 
-void RepeatSetpointNode::ReceiveMessage(
+void PathHandlerNode::ReceiveMessage(
     const geometry_msgs::PoseStamped& pose_msg) {
 
   // geometry_msgs::PoseStamped pose_msg;
@@ -43,7 +43,7 @@ void RepeatSetpointNode::ReceiveMessage(
   last_msg = pose_msg;
 }
 
-void RepeatSetpointNode::ReceivePath(
+void PathHandlerNode::ReceivePath(
     const nav_msgs::Path& msg) {
 
   path.clear();
@@ -52,7 +52,7 @@ void RepeatSetpointNode::ReceivePath(
   }
 }
 
-void RepeatSetpointNode::PositionCallback(
+void PathHandlerNode::PositionCallback(
     const geometry_msgs::PoseStamped& pose_msg) {
 
   if (path.size() > 0 && abs(path[0].pose.position.x - pose_msg.pose.position.x) < 2 
@@ -70,9 +70,9 @@ void RepeatSetpointNode::PositionCallback(
 }
 
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "repeat_setpoint_node");
+  ros::init(argc, argv, "path_handler_node");
 
-  rotors_control::RepeatSetpointNode repeat_setpoint_node;
+  rotors_control::PathHandlerNode path_handler_node;
 
   ros::spin();
 

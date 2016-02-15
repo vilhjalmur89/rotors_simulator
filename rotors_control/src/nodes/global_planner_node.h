@@ -65,15 +65,15 @@ class GlobalPlannerNode {
   ros::Subscriber cmd_clicked_point_sub_;
 
   // Publishers
-  ros::Publisher cmd_multi_dof_joint_trajectory_pub_;
+  // ros::Publisher cmd_multi_dof_joint_trajectory_pub_;
   ros::Publisher cmd_global_path_pub_;
 
-  // lee_controler_publisher
-  ros::Publisher wp_pub;
-  // Mavros publisher
-  ros::Publisher mavros_waypoint_publisher;
-  // Repeat setpoint publisher
-  ros::Publisher repeat_setpoint_publisher;
+  // // lee_controler_publisher
+  // ros::Publisher wp_pub;
+  // // Mavros publisher
+  // ros::Publisher mavros_waypoint_publisher;
+  // // path_handler publisher
+  // ros::Publisher path_handler_publisher;
 
   void PositionCallback(
       const geometry_msgs::PoseStamped& msg);

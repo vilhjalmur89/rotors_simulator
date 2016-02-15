@@ -1,5 +1,5 @@
-#ifndef ROTORS_CONTROL_REPEAT_SETPOINT_NODE_H
-#define ROTORS_CONTROL_REPEAT_SETPOINT_NODE_H
+#ifndef ROTORS_CONTROL_PATH_HANDLER_NODE_H
+#define ROTORS_CONTROL_PATH_HANDLER_NODE_H
 
 #include <vector>
 #include <geometry_msgs/PoseStamped.h>
@@ -9,10 +9,10 @@
 
 namespace rotors_control {
 
-class RepeatSetpointNode {
+class PathHandlerNode {
  public:
-  RepeatSetpointNode();
-  ~RepeatSetpointNode();
+  PathHandlerNode();
+  ~PathHandlerNode();
 
  private:
 
@@ -32,4 +32,4 @@ class RepeatSetpointNode {
 };
 }
 
-#endif // ROTORS_CONTROL_REPEAT_SETPOINT_NODE_H
+#endif // ROTORS_CONTROL_PATH_HANDLER_NODE_H

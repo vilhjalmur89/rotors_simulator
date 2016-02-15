@@ -64,10 +64,10 @@ add_dependencies(global_planner_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(global_planner_node
   global_planner ${catkin_LIBRARIES})
 
-# <Repeat Setpoint Node>
-add_executable(repeat_setpoint_node src/nodes/repeat_setpoint_node.cpp)
-add_dependencies(repeat_setpoint_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(repeat_setpoint_node
+# <Path Handler Node>
+add_executable(path_handler_node src/nodes/path_handler_node.cpp)
+add_dependencies(path_handler_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(path_handler_node
   ${catkin_LIBRARIES})
 
 add_executable(roll_pitch_yawrate_thrust_controller_node
