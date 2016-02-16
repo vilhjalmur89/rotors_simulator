@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 
 #include "path_handler_node.h"
+#include <tf/transform_broadcaster.h>
 
 namespace rotors_control {
 
@@ -13,18 +14,39 @@ PathHandlerNode::PathHandlerNode() {
   cmd_ground_truth_sub_ = nh.subscribe("/mavros/local_position/pose", 1, &PathHandlerNode::PositionCallback, this);
 
   mavros_waypoint_publisher = nh.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
+  mavros_velocity_publisher = nh.advertise<geometry_msgs::TwistStamped>("/mavros/setpoint_velocity/cmd_vel", 10);
 
   last_msg.header.frame_id="/world";
   last_msg.pose.position.x = 0;
   last_msg.pose.position.y = 0;
   last_msg.pose.position.z = 2;
+  last_pos = last_msg;
 
-  ros::Rate r(100);
+  ros::Rate r(10);
   while(ros::ok())
   {
-     r.sleep();
-     ros::spinOnce();
-     mavros_waypoint_publisher.publish(last_msg);
+    r.sleep();
+    ros::spinOnce();
+
+    auto x = last_msg.pose.position.x - last_pos.pose.position.x;
+    auto y = last_msg.pose.position.y - last_pos.pose.position.y;
+    auto z = last_msg.pose.position.z - last_pos.pose.position.z;
+    tf::Vector3 vec(x,y,z);
+    // vec.normalize();
+    vec *= 2.0;
+
+    geometry_msgs::TwistStamped vel;
+    vel.twist.linear.x = vec.getX();
+    vel.twist.linear.y = vec.getY();
+    vel.twist.linear.z = vec.getZ();
+
+    geometry_msgs::PoseStamped increased_distance_pos;
+    increased_distance_pos.pose.position.x = last_msg.pose.position.x + vec.getX();
+    increased_distance_pos.pose.position.y = last_msg.pose.position.y + vec.getY();
+    increased_distance_pos.pose.position.z = last_msg.pose.position.z + vec.getZ();
+
+    // mavros_velocity_publisher.publish(vel);
+    mavros_waypoint_publisher.publish(increased_distance_pos);
   }
 }
 
@@ -55,8 +77,9 @@ void PathHandlerNode::ReceivePath(
 void PathHandlerNode::PositionCallback(
     const geometry_msgs::PoseStamped& pose_msg) {
 
-  if (path.size() > 0 && abs(path[0].pose.position.x - pose_msg.pose.position.x) < 2 
-                      && abs(path[0].pose.position.y - pose_msg.pose.position.y) < 2) {
+  last_pos = pose_msg;
+  if (path.size() > 0 && abs(path[0].pose.position.x - pose_msg.pose.position.x) < 1 
+                      && abs(path[0].pose.position.y - pose_msg.pose.position.y) < 1) {
 
     path.erase(path.begin());
 

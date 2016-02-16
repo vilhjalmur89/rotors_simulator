@@ -156,6 +156,7 @@ void GlobalPlannerNode::PublishPath() {
     poseMsg.pose.position.y = wp.position[1];
     poseMsg.pose.position.z = wp.position[2];
     // poseMsg.pose.orientation = mav_msgs::quaternionFromYaw(wp.yaw);
+    // mav_msgs::setQuaternionMsgFromYaw(wp.yaw, &poseMsg.pose.orientation);
     path.poses.push_back(poseMsg);
 
     // mav_msgs::CommandTrajectory px4Msg;
