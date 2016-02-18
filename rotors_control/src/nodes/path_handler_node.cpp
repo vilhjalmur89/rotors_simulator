@@ -44,6 +44,7 @@ PathHandlerNode::PathHandlerNode() {
     increased_distance_pos.pose.position.x = last_msg.pose.position.x + vec.getX();
     increased_distance_pos.pose.position.y = last_msg.pose.position.y + vec.getY();
     increased_distance_pos.pose.position.z = last_msg.pose.position.z + vec.getZ();
+    increased_distance_pos.pose.orientation = last_msg.pose.orientation;
 
     // mavros_velocity_publisher.publish(vel);
     mavros_waypoint_publisher.publish(increased_distance_pos);

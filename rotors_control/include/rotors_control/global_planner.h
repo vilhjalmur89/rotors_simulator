@@ -111,6 +111,14 @@ struct HashCell {
     }
 };
 
+class CompareDist
+{
+public:
+    bool operator()(std::pair<Cell,double> n1, std::pair<Cell,double> n2) {
+        return n1.second>n2.second;
+    }
+};
+
 class GlobalPlanner {
  public:
   // octomap::OcTree* octree;
@@ -132,6 +140,7 @@ class GlobalPlanner {
   double inf = std::numeric_limits<double>::infinity();
   int maxIterations = 100000;
   double riskFactor = 2.0;
+  double neighborRiskFlow = 1.0;
   double explorePenalty = 0.1;
   double upPenalty = 5;
 

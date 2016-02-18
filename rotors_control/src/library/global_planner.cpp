@@ -22,34 +22,16 @@
 
 namespace rotors_control {
 
-class CompareDist
-{
-public:
-    bool operator()(std::pair<Cell,double> n1,std::pair<Cell,double> n2) {
-        return n1.second>n2.second;
-    }
-};
-
-
 double angle(Cell pos, Cell p, double lastAng) {
-  // Assumption: p is one of the eight neighboring cells of pos
   int dx = p.x() - pos.x();
   int dy = p.y() - pos.y();
-  double ang;
-  if (dy > 0) {
-    ang = M_PI/2 - M_PI/4 * dx;
+  if (dx == 0 && dy == 0) {
+    return lastAng;   // Going up or down
   }
-  else if (dy < 0) {
-    ang = 3*M_PI/2 + M_PI/4 * dx;
-  }
-  else if (dx != 0){
-    ang = M_PI/2 - M_PI/2 * dx;     // Left or right
-  }
-  else {
-    ang = lastAng;                  // up
-  }
-  ang -= int(((ang+M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);
-  ang -= int(((ang-M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);
+  double ang = atan2(dy, dx);
+  // Get ang to the range [lastAng-Pi, lastAng+Pi]
+  ang -= int(((ang+M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);   // Now ang <= lastAng+Pi
+  ang -= int(((ang-M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);   // Now ang >= lastAng-Pi
   return ang;
 }
 
@@ -58,13 +40,18 @@ double between(double start, double end, int steps, int totalSteps) {
   return start + (end - start) * steps / totalSteps;
 }
 
-WaypointWithTime getPointBetween(const WaypointWithTime & a, const WaypointWithTime & b, 
+double interpolate(double start, double end, double ratio) {
+  return start + (end - start) * ratio;
+}
+
+WaypointWithTime interpolateWaypoints(const WaypointWithTime & a, const WaypointWithTime & b, 
                                  int step, int totalSteps, int minTime) {
   double t = minTime;
-  double x = between(a.position[0], b.position[0], step, totalSteps);
-  double y = between(a.position[1], b.position[1], step, totalSteps);
-  double z = between(a.position[2], b.position[2], step, totalSteps);
-  double yaw = between(a.yaw, b.yaw, step, totalSteps);
+  double ratio = (double)step / (double)totalSteps;
+  double x = interpolate(a.position[0], b.position[0], ratio);
+  double y = interpolate(a.position[1], b.position[1], ratio);
+  double z = interpolate(a.position[2], b.position[2], ratio);
+  double yaw = interpolate(a.yaw, b.yaw, ratio);
   return WaypointWithTime(t, x, y, z, yaw);
 }
 
@@ -121,7 +108,7 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap& msg) {
     }
   }
   delete octree;
-  return pathIsBad;
+  return !pathIsBad;
 }
 
 bool GlobalPlanner::updateOctomap(const visualization_msgs::MarkerArray& msg) {
@@ -155,9 +142,9 @@ void GlobalPlanner::increaseResolution(double minDist, double minRot, double min
   for (int i=1; i < waypoints.size(); ++i) {
     double dist = distance(waypoints[i].position, waypoints[i-1].position);
     double diffYaw = std::abs(waypoints[i].yaw - waypoints[i-1].yaw);
-    int factor = (int) std::max(dist / minDist, (diffYaw / minRot)) + 1;
-    for (int j=1; j <= factor; ++j) {
-      newWaypoints.push_back(getPointBetween(waypoints[i-1], waypoints[i], j, factor, minTime));
+    int numSteps = (int) std::max(dist / minDist, (diffYaw / minRot)) + 1;
+    for (int j=1; j <= numSteps; ++j) {
+      newWaypoints.push_back(interpolateWaypoints(waypoints[i-1], waypoints[i], j, numSteps, minTime));
     }
   }
   waypoints = newWaypoints;
@@ -191,7 +178,6 @@ void GlobalPlanner::truncatePath() {
 }
 
 void GlobalPlanner::getNeighbors(Cell cell, std::vector< std::pair<Cell, double> > & neighbors) {
-  // Right angle neighbors
   double x = cell.x();
   double y = cell.y();
   double z = cell.z();
@@ -256,32 +242,22 @@ double GlobalPlanner::getRisk(Cell & cell) {
   if (occProb.find(cell) != occProb.end()) {
     risk = octomap::probability(occProb[cell]);
   }
+
   Cell front = Cell(cell.x()+1, cell.y(), cell.z());
   Cell back = Cell(cell.x()-1, cell.y(), cell.z());
   Cell right = Cell(cell.x(), cell.y()+1, cell.z());
   Cell left = Cell(cell.x(), cell.y()-1, cell.z());
   Cell up = Cell(cell.x(), cell.y(), cell.z()+1);
   Cell down = Cell(cell.x(), cell.y(), cell.z()-1);
-  if (occProb.find(front) != occProb.end()) {
-    risk += octomap::probability(occProb[front]);
+  std::vector<Cell> cells {front, back, right, left, up, down};
+
+  for (Cell cell : cells) {
+    if (occProb.find(cell) != occProb.end()) {
+      risk += neighborRiskFlow * octomap::probability(occProb[cell]);
+    }
   }
-  if (occProb.find(back) != occProb.end()) {
-    risk += octomap::probability(occProb[back]);
-  }
-  if (occProb.find(right) != occProb.end()) {
-    risk += octomap::probability(occProb[right]);
-  }
-  if (occProb.find(left) != occProb.end()) {
-    risk += octomap::probability(occProb[left]);
-  }
-  if (occProb.find(up) != occProb.end()) {
-    risk += octomap::probability(occProb[up]);
-  }
-  if (occProb.find(down) != occProb.end()) {
-    risk += octomap::probability(occProb[down]);
-  }
+
   double prior = heightPrior[floor(cell.z())];
-  // ROS_INFO("risk: %f \t prior: %f \n", risk, prior);
   return risk * prior;
 }
 
@@ -352,6 +328,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
     return false;
   }
 
+  // Get the path by walking from t back to s
   Cell walker = t;
   pathCells.clear();
   while (!(walker == s)) {
