@@ -34,7 +34,6 @@
 #include <nav_msgs/Odometry.h>
 #include <ros/callback_queue.h>
 #include <ros/ros.h>
-#include <trajectory_msgs/MultiDOFJointTrajectory.h>
 #include <octomap_msgs/conversions.h>
 #include <octomap_msgs/Octomap.h>
 #include <octomap/octomap.h>
@@ -85,13 +84,10 @@ class GlobalPlannerNode {
   void OctomapFullCallback(
       const octomap_msgs::Octomap& msg);
 
-  void PlanPathCallback();
+  void PlanPath();
 
   void PublishPath();
-
-  void MultiDofJointTrajectoryCallback(
-      const trajectory_msgs::MultiDOFJointTrajectoryConstPtr& trajectory_reference_msg);
-
+  
   void ClickedPointCallback(
       const geometry_msgs::PointStamped& msg);
 

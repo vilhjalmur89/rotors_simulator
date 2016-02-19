@@ -69,7 +69,7 @@ void GlobalPlannerNode::ClickedPointCallback(
 
   global_planner.goalPos = Cell(msg.point);
   global_planner.goingBack = false;
-  PlanPathCallback();
+  PlanPath();
 }
 
 void GlobalPlannerNode::OctomapFullCallback(
@@ -78,30 +78,17 @@ void GlobalPlannerNode::OctomapFullCallback(
   if (!global_planner.updateFullOctomap(msg)) {
     ROS_INFO("  Path is bad, planning a new path");
     global_planner.truncatePath();             // Cut off bad part of path
+    // TODO: Decide whether to truncate path or not
     Cell tmp = global_planner.goalPos;
     global_planner.goalPos = Cell(global_planner.currPos);
     PublishPath();      
     global_planner.goalPos = tmp;              // Publish cut-off path
-    PlanPathCallback();                       // Plan a whole new path
+    PlanPath();                       // Plan a whole new path
   }
 
 }
 
-void GlobalPlannerNode::OctomapCallback(
-    const visualization_msgs::MarkerArray& msg) {
-
-  // if (global_planner.updateOctomap(msg)) {
-  //   ROS_INFO("  Path is bad, planning a new path");
-  //   global_planner.truncatePath();    // Cut off bad part of path
-  //   Cell tmp = global_planner.goalPos;
-  //   global_planner.goalPos = Cell(global_planner.currPos);
-  //   PublishPath();      
-  //   global_planner.goalPos = tmp;              // Publish cut-off path
-  //   PlanPathCallback();               // Plan a whole new path
-  // }
-}
-
-void GlobalPlannerNode::PlanPathCallback() {
+void GlobalPlannerNode::PlanPath() {
   ROS_INFO("Start planning path.");
   if (!global_planner.getGlobalPath()) {
     ROS_INFO("Failed to find a path");
@@ -111,14 +98,9 @@ void GlobalPlannerNode::PlanPathCallback() {
 }
 
 void GlobalPlannerNode::PublishPath() {
-  trajectory_msgs::MultiDOFJointTrajectory newMsg;
-  newMsg.header.stamp = ros::Time::now();
-  newMsg.joint_names.push_back("base_link");
-
   nav_msgs::Path path;
   path.header.frame_id="/world";
 
-  int64_t time_from_start_ns = 0;
   for (WaypointWithTime wp : global_planner.waypoints) {
     geometry_msgs::PoseStamped poseMsg;
     poseMsg.header.frame_id="/world";
@@ -126,11 +108,18 @@ void GlobalPlannerNode::PublishPath() {
     poseMsg.pose.position.y = wp.position[1];
     poseMsg.pose.position.z = wp.position[2];
     poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(wp.yaw);
+    poseMsg.pose.orientation.x = poseMsg.pose.orientation.w;
+    poseMsg.pose.orientation.w = poseMsg.pose.orientation.z;
+    poseMsg.pose.orientation.z = 0.0;
+
+    // Eigen::Vector3d v(0.0, 0.0, wp.yaw);
+    // Eigen::Quaterniond q = UAS::quaternion_from_rpy(v);
+    // tf::quaternionEigenToMsg(q, poseMsg.pose.orientation);
+
     path.poses.push_back(poseMsg);
   }
   cmd_global_path_pub_.publish(path);
   printf("\n    Published Full Path \n");
-
 }
 
 }

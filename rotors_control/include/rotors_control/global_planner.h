@@ -21,6 +21,7 @@
 #ifndef ROTORS_CONTROL_GLOBAL_PLANNER_H
 #define ROTORS_CONTROL_GLOBAL_PLANNER_H
 
+#include <ros/ros.h>
 #include <mav_msgs/conversions.h>
 #include <mav_msgs/eigen_mav_msgs.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -150,12 +151,13 @@ class GlobalPlanner {
   void setPose(geometry_msgs::Point newPos, double newYaw);
   bool getGlobalPath();
   bool updateFullOctomap(const octomap_msgs::Octomap& msg);
-  bool updateOctomap(const visualization_msgs::MarkerArray& msg);
   void truncatePath();
   void increaseResolution(double minDist, double minRot, double minTime);
   void getNeighbors(Cell cell, std::vector< std::pair<Cell, double> > & neighbors);
   double getRisk(Cell & cell);
+  void goBack();
   bool FindPath(std::vector<Cell> & path);
+  void pathToWaypoints(std::vector<Cell> & path);
 
 
  private:
