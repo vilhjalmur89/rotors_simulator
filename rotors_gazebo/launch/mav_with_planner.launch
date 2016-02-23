@@ -24,7 +24,6 @@
     </node> -->
     <node name="global_planner_node" pkg="rotors_control" type="global_planner_node" output="screen" />
     <node name="path_handler_node" pkg="rotors_control" type="path_handler_node" output="screen" />
-    <!-- <node name="waypoint_planner" pkg="rotors_gazebo" type="waypoint_planner" output="screen" args="$(find rotors_gazebo)/resource/example_waypoints2.txt"/> -->
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
     <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
 

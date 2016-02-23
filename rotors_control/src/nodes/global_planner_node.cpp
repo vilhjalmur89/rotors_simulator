@@ -30,6 +30,16 @@
 #include <geometry_msgs/Quaternion.h>
 #include <math.h> // floor
 
+#include <ros/ros.h>
+#include <mavros/mavros_uas.h>
+
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
+
+#include <eigen_conversions/eigen_msg.h>
+
+using mavros::UAS;
+
 
 namespace rotors_control {
 
@@ -108,13 +118,22 @@ void GlobalPlannerNode::PublishPath() {
     poseMsg.pose.position.y = wp.position[1];
     poseMsg.pose.position.z = wp.position[2];
     poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(wp.yaw);
-    poseMsg.pose.orientation.x = poseMsg.pose.orientation.w;
-    poseMsg.pose.orientation.w = poseMsg.pose.orientation.z;
+    poseMsg.pose.orientation.x = poseMsg.pose.orientation.z;
+    // poseMsg.pose.orientation.w = poseMsg.pose.orientation.z;
     poseMsg.pose.orientation.z = 0.0;
 
+    // Eigen::Quaterniond q = UAS::quaternion_from_rpy(0.0, 0.0, 0.0);
     // Eigen::Vector3d v(0.0, 0.0, wp.yaw);
-    // Eigen::Quaterniond q = UAS::quaternion_from_rpy(v);
+    // Eigen::Quaterniond q = Eigen::Quaterniond(
+    //                      Eigen::AngleAxisd(v.z(), Eigen::Vector3d::UnitZ()) *
+    //                      Eigen::AngleAxisd(v.y(), Eigen::Vector3d::UnitY()) *
+    //                      Eigen::AngleAxisd(v.x(), Eigen::Vector3d::UnitX())
+    //                      );
     // tf::quaternionEigenToMsg(q, poseMsg.pose.orientation);
+   // poseMsg.pose.orientation.x = q.x();
+   // poseMsg.pose.orientation.y = q.y();
+   // poseMsg.pose.orientation.z = q.z();
+   // poseMsg.pose.orientation.w = q.w();
 
     path.poses.push_back(poseMsg);
   }

@@ -1,7 +1,6 @@
 #include <ros/ros.h>
 
 #include "path_handler_node.h"
-#include <tf/transform_broadcaster.h>
 
 namespace rotors_control {
 
@@ -14,6 +13,7 @@ PathHandlerNode::PathHandlerNode() {
   cmd_ground_truth_sub_ = nh.subscribe("/mavros/local_position/pose", 1, &PathHandlerNode::PositionCallback, this);
 
   mavros_waypoint_publisher = nh.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
+  mavros_attitude_publisher = nh.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_attitude/attitude", 10);
   mavros_velocity_publisher = nh.advertise<geometry_msgs::TwistStamped>("/mavros/setpoint_velocity/cmd_vel", 10);
 
   last_msg.header.frame_id="/world";
@@ -40,14 +40,21 @@ PathHandlerNode::PathHandlerNode() {
     vel.twist.linear.y = vec.getY();
     vel.twist.linear.z = vec.getZ();
 
+
     geometry_msgs::PoseStamped increased_distance_pos;
     increased_distance_pos.pose.position.x = last_msg.pose.position.x + vec.getX();
     increased_distance_pos.pose.position.y = last_msg.pose.position.y + vec.getY();
     increased_distance_pos.pose.position.z = last_msg.pose.position.z + vec.getZ();
+    mavros_waypoint_publisher.publish(increased_distance_pos);
+    
+
     increased_distance_pos.pose.orientation = last_msg.pose.orientation;
+    increased_distance_pos.pose.position.x = 0;
+    increased_distance_pos.pose.position.y = 0;
+    increased_distance_pos.pose.position.z = 0;
+    mavros_attitude_publisher.publish(increased_distance_pos);
 
     // mavros_velocity_publisher.publish(vel);
-    mavros_waypoint_publisher.publish(increased_distance_pos);
   }
 }
 
@@ -57,12 +64,7 @@ PathHandlerNode::~PathHandlerNode() { }
 void PathHandlerNode::ReceiveMessage(
     const geometry_msgs::PoseStamped& pose_msg) {
 
-  // geometry_msgs::PoseStamped pose_msg;
-  // pose_msg.header.frame_id="/world";
-  // pose_msg.pose.position.x = point_msg.point.x;
-  // pose_msg.pose.position.y = point_msg.point.y;
-  // pose_msg.pose.position.z = 2;
-
+  // Not in use
   last_msg = pose_msg;
 }
 
@@ -80,13 +82,11 @@ void PathHandlerNode::PositionCallback(
 
   last_pos = pose_msg;
   if (path.size() > 0 && abs(path[0].pose.position.x - pose_msg.pose.position.x) < 1 
-                      && abs(path[0].pose.position.y - pose_msg.pose.position.y) < 1) {
+                      && abs(path[0].pose.position.y - pose_msg.pose.position.y) < 1
+                      && abs(path[0].pose.position.z - pose_msg.pose.position.z) < 1) {
 
+    last_msg = path[0];
     path.erase(path.begin());
-
-    if (path.size() > 0) {
-      last_msg = path[0];
-    }
   }
 }
 

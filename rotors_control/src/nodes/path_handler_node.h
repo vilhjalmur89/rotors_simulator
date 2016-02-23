@@ -8,6 +8,7 @@
 #include <geometry_msgs/Vector3.h>
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
 #include <nav_msgs/Path.h>
+#include <tf/transform_broadcaster.h>
 // #include <math.h>           
 
 namespace rotors_control {
@@ -28,6 +29,7 @@ class PathHandlerNode {
   ros::Subscriber cmd_ground_truth_sub_;
 
   ros::Publisher mavros_waypoint_publisher;
+  ros::Publisher mavros_attitude_publisher;
   ros::Publisher mavros_velocity_publisher;
 
   void ReceiveMessage(const geometry_msgs::PoseStamped& pose_msg);

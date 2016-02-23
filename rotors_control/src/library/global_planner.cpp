@@ -29,7 +29,7 @@ double angle(Cell pos, Cell p, double lastAng) {
     return lastAng;   // Going up or down
   }
   double ang = atan2(dy, dx);
-  // Get ang to the range [lastAng-Pi, lastAng+Pi]
+  // Now ang is in the range [-Pi, Pi], but we want ang to be in [lastAng-Pi, lastAng+Pi]
   // This is because the rotor will spin a whole circle when going from 359 deg to 0 deg
   ang -= int(((ang+M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);   // Now ang <= lastAng+Pi
   ang -= int(((ang-M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);   // Now ang >= lastAng-Pi
@@ -66,27 +66,27 @@ double distance2D(const Cell & a, const Cell & b) {
   return sqrt(squared(a.x() - b.x()) + squared(a.y() - b.y()));
 }
 
-GlobalPlanner::GlobalPlanner() : goingBack(false) {}
+GlobalPlanner::GlobalPlanner()  {}
 GlobalPlanner::~GlobalPlanner() {}
 
-void GlobalPlanner::setPose(geometry_msgs::Point newPos, double newYaw) {
+void GlobalPlanner::setPose(const geometry_msgs::Point newPos, double newYaw) {
   currPos = newPos;
   yaw = newYaw;
   Cell currCell = Cell(currPos);
-  if (!goingBack && (pathBack.size() == 0 || !(currCell == pathBack[pathBack.size()-1]))) {
-    // Keep track of where we have been, add current position to path back if it is different from last one
+  if (!goingBack && (pathBack.size() == 0 || currCell != pathBack[pathBack.size()-1])) {
+    // Keep track of where we have been, add current position to pathBack if it is different from last one
     pathBack.push_back(currCell);
   }
 }
 
-bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap& msg) {
+bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
   // Returns false iff current path has an obstacle
-  bool pathIsBad = false;
+  bool pathIsBlocked = false;
   occupied.clear();
   octomap::AbstractOcTree* tree = octomap_msgs::msgToMap(msg);
   octomap::OcTree* octree = dynamic_cast<octomap::OcTree*>(tree);
   if (tree) {
-    for(octomap::OcTree::leaf_iterator it = octree->begin_leafs(), end=octree->end_leafs(); it!= end; ++it){
+    for(auto it = octree->begin_leafs(), end=octree->end_leafs(); it!= end; ++it){
       Cell cell(it.getCoordinate().x(), it.getCoordinate().y(), it.getCoordinate().z());
       double cellProb = it->getValue(); 
       occProb[cell] = cellProb;
@@ -95,7 +95,7 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap& msg) {
         occupied.insert(cell);
         if (cellProb > maxBailProb && pathCells.find(cell) != pathCells.end()) {
           // Cell is on path and is risky enough to abort mission
-          pathIsBad = true;
+          pathIsBlocked = true;
         }
       }
       if (it.getSize() > 1) {
@@ -105,7 +105,7 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap& msg) {
     }
   }
   delete octree;
-  return !pathIsBad;
+  return !pathIsBlocked;
 }
 
 void GlobalPlanner::increaseResolution(double minDist, double minRot, double minTime) {
@@ -161,7 +161,7 @@ void GlobalPlanner::truncatePath() {
   waypoints.resize(0);
 }
 
-void GlobalPlanner::getNeighbors(Cell cell, std::vector< std::pair<Cell, double> > & neighbors) {
+void GlobalPlanner::getOpenNeighbors(Cell cell, std::vector<CellDistancePair> & neighbors) const {
   // Fill neighbors with the 8 horizontal and 2 vertical non-occupied neigbors
   // It's long because it uses the minimum number of 'if's 
   // TODO: Try using weights instead of 'if's
@@ -224,7 +224,7 @@ void GlobalPlanner::getNeighbors(Cell cell, std::vector< std::pair<Cell, double>
   }
 }
 
-double GlobalPlanner::getRisk(Cell & cell) {
+double GlobalPlanner::getRisk(Cell & cell){
   // Computes the risk from the cell, its neighbors and the prior
 
   double risk = explorePenalty;
@@ -250,6 +250,7 @@ double GlobalPlanner::getRisk(Cell & cell) {
   return risk * prior;
 }
 
+// TODO: Straight to msg
 void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
   waypoints.resize(0);
   // Use actual position instead of the center of the cell
@@ -283,45 +284,42 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
 
   Cell s = Cell(currPos);
   Cell t = Cell(goalPos.x(), goalPos.y(), 2);
-  // ROS_INFO("Trying to find path from %d,%d to %d,%d", s.x(), s.y(), t.x(), t.y());
 
   // Initialize containers
   std::map<Cell, Cell> parent;
   std::map<Cell, double> distance;
   std::set<Cell> seen;
-  std::priority_queue< std::pair<Cell,double>, 
-                       std::vector< std::pair<Cell,double> >,
-                       CompareDist> pq;                 
+  std::priority_queue<CellDistancePair, std::vector<CellDistancePair>, CompareDist> pq;                 
   pq.push(std::make_pair(s, 0.0));
   distance[s] = 0.0;
   int numIter = 0;
 
   // Search until t is found, all reachable cells have been found or run too long
   while (!pq.empty() && numIter++ < maxIterations) {
-    auto cellDistU = pq.top(); pq.pop();
+    CellDistancePair cellDistU = pq.top(); pq.pop();
     Cell u = cellDistU.first;
+    double d = cellDistU.second;
     if (seen.find(u) != seen.end()) {
       continue;
     }
-    double d = distance[u];
     seen.insert(u);
     if (u == t) {
-      break;
+      break;  // Found a path
     }
 
-    std::vector< std::pair<Cell, double> > neighbors;
-    getNeighbors(u, neighbors);
+    std::vector<CellDistancePair> neighbors;
+    getOpenNeighbors(u, neighbors);
     for (auto cellDistV : neighbors) {
       Cell v = cellDistV.first;
+      double costOfEdge = cellDistV.second;
       double risk = getRisk(v);
-      double newDist = d + cellDistV.second + riskFactor * risk;
+      double newDist = d + costOfEdge + riskFactor * risk;
       double oldDist = inf;
       if (distance.find(v) != distance.end()) {
         oldDist = distance[v];
       }
-      if (occupied.find(v) == occupied.end() && seen.find(v) == seen.end()
-          && newDist < oldDist) {
-        // TODO: Only need to check newDist < oldDist
+      if (newDist < oldDist) {
+        // Found a better path to v, have to add v to the queue 
         parent[v] = u;
         distance[v] = newDist;
         double heuristic = newDist + overEstimateFactor*distance2D(v, t);

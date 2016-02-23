@@ -80,26 +80,21 @@ class Cell {
       : tpl(floor(point[0]), floor(point[1]), floor(point[2]))  {
   }
 
-  bool operator==(const Cell & other) const {
-    return this->tpl == other.tpl;
-  }
-
-  bool operator<(const Cell & other) const {
-    return this->tpl < other.tpl;
-  }
-
-  int x() const {
-    return std::get<0>(tpl);
-  }
-  int y() const {
-    return std::get<1>(tpl);
-  }
-  int z() const {
-    return std::get<2>(tpl);
-  }
+  int x() const {return std::get<0>(tpl);}
+  int y() const {return std::get<1>(tpl);}
+  int z() const {return std::get<2>(tpl);}
 
   std::tuple<int, int, int> tpl;
 };
+
+inline bool operator==(const Cell& lhs, const Cell& rhs) {return lhs.tpl == rhs.tpl;}
+inline bool operator!=(const Cell& lhs, const Cell& rhs) {return !operator==(lhs,rhs);}
+inline bool operator< (const Cell& lhs, const Cell& rhs) {return lhs.tpl < rhs.tpl;}
+inline bool operator> (const Cell& lhs, const Cell& rhs) {return  operator< (rhs,lhs);}
+inline bool operator<=(const Cell& lhs, const Cell& rhs) {return !operator> (lhs,rhs);}
+inline bool operator>=(const Cell& lhs, const Cell& rhs) {return !operator< (lhs,rhs);}
+
+typedef std::pair<Cell, double> CellDistancePair;
 
 struct HashCell {
     size_t operator()(const Cell &cell ) const
@@ -115,24 +110,25 @@ struct HashCell {
 class CompareDist
 {
 public:
-    bool operator()(std::pair<Cell,double> n1, std::pair<Cell,double> n2) {
-        return n1.second>n2.second;
+    bool operator()(CellDistancePair n1, CellDistancePair n2) {
+        return n1.second > n2.second;
     }
 };
 
 class GlobalPlanner {
  public:
   // octomap::OcTree* octree;
-  std::vector<double> heightPrior { 1.0, 1.0, 0.8, 0.8, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.1, 0.1, 0.1};
+  std::vector<double> heightPrior { 1.0, 1.0, 0.8, 0.8, 0.6, 0.5, 0.4,
+                                    0.3, 0.2, 0.1, 0.1, 0.1, 0.1};
   std::set<Cell> occupied;
-  std::unordered_map<Cell, double, HashCell> occProb; // TODO: Compare map and unordered_map
+  std::unordered_map<Cell, double, HashCell> occProb;
   std::set<Cell> pathCells;
   std::vector<WaypointWithTime> waypoints;
   std::vector<Cell> pathBack;
   geometry_msgs::Point currPos;
   Cell goalPos;
-  bool goingBack;
   double yaw;
+  bool goingBack = false;
   double overEstimateFactor = 2.0;
   int minHeight = 1;
   int maxHeight = 12;
@@ -149,15 +145,15 @@ class GlobalPlanner {
   ~GlobalPlanner();
 
   void setPose(geometry_msgs::Point newPos, double newYaw);
-  bool getGlobalPath();
   bool updateFullOctomap(const octomap_msgs::Octomap& msg);
-  void truncatePath();
   void increaseResolution(double minDist, double minRot, double minTime);
-  void getNeighbors(Cell cell, std::vector< std::pair<Cell, double> > & neighbors);
+  void truncatePath();
+  void getOpenNeighbors(Cell cell, std::vector<CellDistancePair> & neighbors) const;
   double getRisk(Cell & cell);
+  void pathToWaypoints(std::vector<Cell> & path);
   void goBack();
   bool FindPath(std::vector<Cell> & path);
-  void pathToWaypoints(std::vector<Cell> & path);
+  bool getGlobalPath();
 
 
  private:
