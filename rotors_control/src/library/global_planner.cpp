@@ -63,7 +63,16 @@ double distance(const Eigen::Vector3d & a, const Eigen::Vector3d & b) {
 }
 
 double distance2D(const Cell & a, const Cell & b) {
+  // Straight-line distance disregarding the z-coordinate
   return sqrt(squared(a.x() - b.x()) + squared(a.y() - b.y()));
+}
+
+double diagDistance2D(const Cell & a, const Cell & b) {
+  // Minimum distance on a grid where you can move diagonally
+  double dx = abs(a.x() - b.x());
+  double dy = abs(a.y() - b.y());
+  double diagCost = 1.41421356237;
+  return (dx + dy) + (diagCost - 2) * std::min(dx, dy);
 }
 
 GlobalPlanner::GlobalPlanner()  {}
@@ -161,6 +170,7 @@ void GlobalPlanner::truncatePath() {
   waypoints.resize(0);
 }
 
+// TODO: Add points on straight line to goal.
 void GlobalPlanner::getOpenNeighbors(Cell cell, std::vector<CellDistancePair> & neighbors) const {
   // Fill neighbors with the 8 horizontal and 2 vertical non-occupied neigbors
   // It's long because it uses the minimum number of 'if's 
@@ -278,6 +288,9 @@ void GlobalPlanner::goBack() {
     pathToWaypoints(path);
 }
 
+// TODO: Run search backwards to quickly find impossible scenarios
+// bool GlobalPlanner::isGoalBlocked() { }
+
 
 bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   // A* to find a path from currPos to goalPos, true iff it found a path
@@ -322,6 +335,8 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
         // Found a better path to v, have to add v to the queue 
         parent[v] = u;
         distance[v] = newDist;
+        // TODO: try Dynamic Weighting in stead of a constant overEstimateFactor
+        // double heuristic = newDist + overEstimateFactor*diagDistance2D(v, t);
         double heuristic = newDist + overEstimateFactor*distance2D(v, t);
         pq.push(std::make_pair(v, heuristic));
       }
@@ -338,7 +353,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   pathCells.clear();
   while (!(walker == s)) {
     path.push_back(walker);
-    pathCells.insert(walker);
+    pathCells.insert(walker);   // TODO: Move outside of function
     walker = parent[walker];
   }
   std::reverse(path.begin(),path.end());
