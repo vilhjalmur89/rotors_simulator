@@ -260,6 +260,18 @@ double GlobalPlanner::getRisk(Cell & cell){
   return risk * prior;
 }
 
+ geometry_msgs::PoseStamped GlobalPlanner::createPoseMsg(double x, double y, double z, double yaw) {
+    geometry_msgs::PoseStamped poseMsg;
+    poseMsg.header.frame_id="/world";
+    poseMsg.pose.position.x = x;
+    poseMsg.pose.position.y = y;
+    poseMsg.pose.position.z = z;
+    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
+    poseMsg.pose.orientation.x = poseMsg.pose.orientation.z;
+    poseMsg.pose.orientation.z = 0.0;
+    return poseMsg;
+ }
+
 // TODO: Straight to msg
 void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
   waypoints.resize(0);
@@ -270,7 +282,9 @@ void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
   for (int i=1; i < path.size()-1; ++i) {
     Cell p = path[i];
     double newYaw = angle(p, path[i+1], lastYaw);
-    waypoints.push_back(WaypointWithTime(0, p.x()+0.5, p.y()+0.5, p.z()+0.5, newYaw));
+    if (newYaw != lastYaw) {
+      waypoints.push_back(WaypointWithTime(0, p.x()+0.5, p.y()+0.5, p.z()+0.5, newYaw));
+    }
     lastYaw = newYaw;
   }
   waypoints.push_back(WaypointWithTime(0, path[path.size()-1].x()+0.5, path[path.size()-1].y()+0.5, 2, 0));
@@ -297,6 +311,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
 
   Cell s = Cell(currPos);
   Cell t = Cell(goalPos.x(), goalPos.y(), 2);
+  ROS_INFO("Planning a path from (%d, %d) to (%d, %d)", s.x(), s.y(), t.x(), t.y());
 
   // Initialize containers
   std::map<Cell, Cell> parent;

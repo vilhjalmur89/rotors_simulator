@@ -24,7 +24,9 @@
 #include <ros/ros.h>
 #include <mav_msgs/conversions.h>
 #include <mav_msgs/eigen_mav_msgs.h>
+#include <nav_msgs/Path.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <tf/transform_listener.h> // getYaw createQuaternionMsgFromYaw 
 
 #include <queue>            // std::priority_queue
 #include <unordered_map>  
@@ -123,7 +125,8 @@ class GlobalPlanner {
   std::set<Cell> occupied;
   std::unordered_map<Cell, double, HashCell> occProb;
   std::set<Cell> pathCells;
-  std::vector<WaypointWithTime> waypoints;
+  std::vector<WaypointWithTime> waypoints;    // TODO: remove and use pathMsg
+  nav_msgs::Path pathMsg;
   std::vector<Cell> pathBack;
   geometry_msgs::Point currPos;
   Cell goalPos;
@@ -150,6 +153,7 @@ class GlobalPlanner {
   void truncatePath();
   void getOpenNeighbors(Cell cell, std::vector<CellDistancePair> & neighbors) const;
   double getRisk(Cell & cell);
+  geometry_msgs::PoseStamped createPoseMsg(double x, double y, double z, double yaw);
   void pathToWaypoints(std::vector<Cell> & path);
   void goBack();
   bool FindPath(std::vector<Cell> & path);

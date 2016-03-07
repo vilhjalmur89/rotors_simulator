@@ -32,8 +32,11 @@ PathHandlerNode::PathHandlerNode() {
     auto y = last_msg.pose.position.y - last_pos.pose.position.y;
     auto z = last_msg.pose.position.z - last_pos.pose.position.z;
     tf::Vector3 vec(x,y,z);
-    // vec.normalize();
-    vec *= 4.0;
+
+    double vecLen = vec.length();
+    vec.normalize();
+    vec *= 0.0 * std::min(1.0, vecLen);
+    // printf("dist: %f\n", vec.length());
 
     geometry_msgs::TwistStamped vel;
     vel.twist.linear.x = vec.getX();
@@ -58,7 +61,7 @@ PathHandlerNode::PathHandlerNode() {
     auto q1 = increased_distance_pos.pose.orientation.x;
     auto q2 = increased_distance_pos.pose.orientation.y;
     auto q3 = increased_distance_pos.pose.orientation.z;
-    printf("    yaw: %f \n", std::atan2(2. * (q0*q3 + q1*q2), 1. - 2. * (q2*q2 + q3*q3)));
+    // printf("    yaw: %f \n", std::atan2(2. * (q0*q3 + q1*q2), 1. - 2. * (q2*q2 + q3*q3)));
     
 
     // increased_distance_pos.pose.position.x = 0;
@@ -85,6 +88,7 @@ void PathHandlerNode::ReceivePath(const nav_msgs::Path& msg) {
   for (auto p : msg.poses) {
     path.push_back(p);
   }
+  last_msg = path[0];
 }
 
 void PathHandlerNode::PositionCallback(

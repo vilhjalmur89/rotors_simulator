@@ -36,7 +36,6 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 
-#include <eigen_conversions/eigen_msg.h>
 
 using mavros::UAS;
 
