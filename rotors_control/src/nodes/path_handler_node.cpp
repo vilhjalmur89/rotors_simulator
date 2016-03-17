@@ -20,6 +20,18 @@ PathHandlerNode::PathHandlerNode() {
   last_msg.pose.position.x = 0;
   last_msg.pose.position.y = 0;
   last_msg.pose.position.z = 2;
+
+  // -45 deg
+  // last_msg.pose.orientation.x = -0.9238795325112867;
+  // last_msg.pose.orientation.y = 0.0;
+  // last_msg.pose.orientation.z = 0.0;
+  // last_msg.pose.orientation.w = -0.3826834323650897;
+
+  // -135 deg
+  last_msg.pose.orientation.x = -0.9238795325112867;
+  last_msg.pose.orientation.y = 0.0;
+  last_msg.pose.orientation.z = 0.0;
+  last_msg.pose.orientation.w = 0.3826834323650897;
   last_pos = last_msg;
 
   ros::Rate r(10);
@@ -28,39 +40,54 @@ PathHandlerNode::PathHandlerNode() {
     r.sleep();
     ros::spinOnce();
 
-    auto x = last_msg.pose.position.x - last_pos.pose.position.x;
-    auto y = last_msg.pose.position.y - last_pos.pose.position.y;
-    auto z = last_msg.pose.position.z - last_pos.pose.position.z;
-    tf::Vector3 vec(x,y,z);
+    // auto x = last_msg.pose.position.x - last_pos.pose.position.x;
+    // auto y = last_msg.pose.position.y - last_pos.pose.position.y;
+    // auto z = last_msg.pose.position.z - last_pos.pose.position.z;
+    // tf::Vector3 vec(x,y,z);
 
-    double vecLen = vec.length();
-    vec.normalize();
-    vec *= 0.0 * std::min(1.0, vecLen);
-    // printf("dist: %f\n", vec.length());
+    // double vecLen = vec.length();
+    // vec.normalize();
+    // vec *= 0.0 * std::min(1.0, vecLen);
+    // // printf("dist: %f\n", vec.length());
 
-    geometry_msgs::TwistStamped vel;
-    vel.twist.linear.x = vec.getX();
-    vel.twist.linear.y = vec.getY();
-    vel.twist.linear.z = vec.getZ();
+    // geometry_msgs::TwistStamped vel;
+    // vel.twist.linear.x = vec.getX();
+    // vel.twist.linear.y = vec.getY();
+    // vel.twist.linear.z = vec.getZ();
 
 
-    geometry_msgs::PoseStamped increased_distance_pos;
-    increased_distance_pos.pose.position.x = last_msg.pose.position.x + vec.getX();
-    increased_distance_pos.pose.position.y = last_msg.pose.position.y + vec.getY();
-    increased_distance_pos.pose.position.z = last_msg.pose.position.z + vec.getZ();
-    // increased_distance_pos.pose.orientation = last_msg.pose.orientation;
-    increased_distance_pos.pose.orientation.x = last_msg.pose.orientation.y;
-    increased_distance_pos.pose.orientation.y = last_msg.pose.orientation.z;
-    increased_distance_pos.pose.orientation.z = last_msg.pose.orientation.w;
-    increased_distance_pos.pose.orientation.w = last_msg.pose.orientation.x;
-    mavros_waypoint_publisher.publish(increased_distance_pos);
+    // geometry_msgs::PoseStamped increased_distance_pos;
+    // increased_distance_pos.pose.position.x = last_msg.pose.position.x + vec.getX();
+    // increased_distance_pos.pose.position.y = last_msg.pose.position.y + vec.getY();
+    // increased_distance_pos.pose.position.z = last_msg.pose.position.z + vec.getZ();
+    // // increased_distance_pos.pose.orientation = last_msg.pose.orientation;
+    // increased_distance_pos.pose.orientation.x = last_msg.pose.orientation.y;
+    // increased_distance_pos.pose.orientation.y = last_msg.pose.orientation.z;
+    // increased_distance_pos.pose.orientation.z = last_msg.pose.orientation.w;
+    // increased_distance_pos.pose.orientation.w = last_msg.pose.orientation.x;
+
+
+    // flip 90 deg
+    auto rot_msg = last_msg;
+    rot_msg.pose.position.x = -(last_msg.pose.position.y);
+    rot_msg.pose.position.y = (last_msg.pose.position.x);
+
+    // Fix the order of the quaternion coordinates 
+    rot_msg.pose.orientation.x = last_msg.pose.orientation.y;
+    rot_msg.pose.orientation.y = last_msg.pose.orientation.z;
+    rot_msg.pose.orientation.z = last_msg.pose.orientation.w;
+    rot_msg.pose.orientation.w = last_msg.pose.orientation.x;
+
+
+    printf("published (%f.3, %f.3\n", rot_msg.pose.position.x, rot_msg.pose.position.y);
+    mavros_waypoint_publisher.publish(rot_msg);
     
 
 
-    auto q0 = increased_distance_pos.pose.orientation.w;
-    auto q1 = increased_distance_pos.pose.orientation.x;
-    auto q2 = increased_distance_pos.pose.orientation.y;
-    auto q3 = increased_distance_pos.pose.orientation.z;
+    // auto q0 = increased_distance_pos.pose.orientation.w;
+    // auto q1 = increased_distance_pos.pose.orientation.x;
+    // auto q2 = increased_distance_pos.pose.orientation.y;
+    // auto q3 = increased_distance_pos.pose.orientation.z;
     // printf("    yaw: %f \n", std::atan2(2. * (q0*q3 + q1*q2), 1. - 2. * (q2*q2 + q3*q3)));
     
 
@@ -95,10 +122,14 @@ void PathHandlerNode::PositionCallback(
     const geometry_msgs::PoseStamped& pose_msg) {
 
   last_pos = pose_msg;
+  // Rotate 90 deg
+  last_pos.pose.position.x = (pose_msg.pose.position.y);
+  last_pos.pose.position.y = -(pose_msg.pose.position.x);
+  printf("Am at (%f.3,%f.3), but want to go to (%f.3,%f.3) \n\n", last_pos.pose.position.x, last_pos.pose.position.y, last_msg.pose.position.x, last_msg.pose.position.y);
   // Check if we are close enough to current goal to get the next part of the path
-  if (path.size() > 0 && abs(last_msg.pose.position.x - pose_msg.pose.position.x) < 1 
-                      && abs(last_msg.pose.position.y - pose_msg.pose.position.y) < 1
-                      && abs(last_msg.pose.position.z - pose_msg.pose.position.z) < 1) {
+  if (path.size() > 0 && abs(last_msg.pose.position.x - last_pos.pose.position.x) < 1 
+                      && abs(last_msg.pose.position.y - last_pos.pose.position.y) < 1
+                      && abs(last_msg.pose.position.z - last_pos.pose.position.z) < 1) {
 
     // Pop the first point of the path
     last_msg = path[0];

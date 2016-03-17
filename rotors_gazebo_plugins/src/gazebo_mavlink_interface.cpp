@@ -66,7 +66,7 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
   _rotor_count = 4;
   last_time_ = world_->GetSimTime();
   last_gps_time_ = world_->GetSimTime();
-  double gps_update_interval_ = 200*1000000;  // nanoseconds for 5Hz
+  gps_update_interval_ = 0.2;  // seconds for 5Hz
 
   gravity_W_ = world_->GetPhysicsEngine()->GetGravity();
 
@@ -130,9 +130,7 @@ void GazeboMavlinkInterface::OnUpdate(const common::UpdateInfo& /*_info*/) {
     lon_rad = lon_zurich;
   }
 
-  common::Time gps_update(gps_update_interval_);
-
-  if(current_time - last_gps_time_ > gps_update){  // 5Hz
+  if(current_time.Double() - last_gps_time_.Double() > gps_update_interval_){  // 5Hz
     mavlink_message_t gps_mmsg;
 
     hil_gps_msg_.time_usec = current_time.nsec*1000;
@@ -191,7 +189,7 @@ void GazeboMavlinkInterface::MavlinkControlCallback(const mavros_msgs::Mavlink::
     inputs.control[7] =(double)act_msg.aux4;
 
     // publish message
-    double scaling = 150;
+    double scaling = 260;
     double offset = 600;
 
     mav_msgs::CommandMotorSpeedPtr turning_velocities_msg(new mav_msgs::CommandMotorSpeed);
@@ -199,6 +197,8 @@ void GazeboMavlinkInterface::MavlinkControlCallback(const mavros_msgs::Mavlink::
     for (int i = 0; i < _rotor_count; i++) {
       turning_velocities_msg->motor_speed.push_back(inputs.control[i] * scaling + offset);
     }
+
+    // printf("%.5f %.5f %.5f %.5f\n", (double)inputs.control[0], (double)inputs.control[1], (double)inputs.control[2], (double)inputs.control[3]);
 
     CommandMotorMavros(turning_velocities_msg);
     turning_velocities_msg.reset();

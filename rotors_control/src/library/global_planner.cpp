@@ -282,9 +282,9 @@ void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
   for (int i=1; i < path.size()-1; ++i) {
     Cell p = path[i];
     double newYaw = angle(p, path[i+1], lastYaw);
-    if (newYaw != lastYaw) {
+    // if (newYaw != lastYaw) {
       waypoints.push_back(WaypointWithTime(0, p.x()+0.5, p.y()+0.5, p.z()+0.5, newYaw));
-    }
+    // }
     lastYaw = newYaw;
   }
   waypoints.push_back(WaypointWithTime(0, path[path.size()-1].x()+0.5, path[path.size()-1].y()+0.5, 2, 0));
@@ -366,7 +366,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   // Get the path by walking from t back to s
   Cell walker = t;
   pathCells.clear();
-  while (!(walker == s)) {
+  while (walker != s) {
     path.push_back(walker);
     pathCells.insert(walker);   // TODO: Move outside of function
     walker = parent[walker];
