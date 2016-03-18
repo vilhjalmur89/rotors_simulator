@@ -71,7 +71,7 @@ void GlobalPlannerNode::PositionCallback(
     const geometry_msgs::PoseStamped& msg) {
 
   auto rot_msg = msg;
-  // Rotate 90 deg
+    // 90 deg fix
   rot_msg.pose.position.x = (msg.pose.position.y);
   rot_msg.pose.position.y = -(msg.pose.position.x);
   global_planner.setPose(rot_msg.pose.position, tf::getYaw(rot_msg.pose.orientation));
@@ -121,7 +121,8 @@ void GlobalPlannerNode::PublishPath() {
     poseMsg.pose.position.x = wp.position[0];
     poseMsg.pose.position.y = wp.position[1];
     poseMsg.pose.position.z = wp.position[2];
-    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(wp.yaw + 3.1415/2.0); 
+    // poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(wp.yaw); // 90 deg fix
+    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw( (-wp.yaw + 3.1415/2.0)); 
     poseMsg.pose.orientation.x = poseMsg.pose.orientation.z;
     // poseMsg.pose.orientation.w = poseMsg.pose.orientation.z;
     poseMsg.pose.orientation.z = 0.0;

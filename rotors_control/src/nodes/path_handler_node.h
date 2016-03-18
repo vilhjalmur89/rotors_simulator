@@ -30,8 +30,7 @@ class PathHandlerNode {
   ros::Subscriber cmd_ground_truth_sub_;
 
   ros::Publisher mavros_waypoint_publisher;
-  ros::Publisher mavros_attitude_publisher;
-  ros::Publisher mavros_velocity_publisher;
+  ros::Publisher current_waypoint_publisher;
 
   void ReceiveMessage(const geometry_msgs::PoseStamped& pose_msg);
   void ReceivePath(const nav_msgs::Path& msg);

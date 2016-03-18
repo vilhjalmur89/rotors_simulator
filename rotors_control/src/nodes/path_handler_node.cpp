@@ -13,8 +13,7 @@ PathHandlerNode::PathHandlerNode() {
   cmd_ground_truth_sub_ = nh.subscribe("/mavros/local_position/pose", 1, &PathHandlerNode::PositionCallback, this);
 
   mavros_waypoint_publisher = nh.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
-  mavros_attitude_publisher = nh.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_attitude/attitude", 10);
-  mavros_velocity_publisher = nh.advertise<geometry_msgs::TwistStamped>("/mavros/setpoint_velocity/cmd_vel", 10);
+  current_waypoint_publisher = nh.advertise<geometry_msgs::PoseStamped>("/current_setpoint", 10);
 
   last_msg.header.frame_id="/world";
   last_msg.pose.position.x = 0;
@@ -40,48 +39,36 @@ PathHandlerNode::PathHandlerNode() {
     r.sleep();
     ros::spinOnce();
 
-    // auto x = last_msg.pose.position.x - last_pos.pose.position.x;
-    // auto y = last_msg.pose.position.y - last_pos.pose.position.y;
-    // auto z = last_msg.pose.position.z - last_pos.pose.position.z;
-    // tf::Vector3 vec(x,y,z);
+    auto x = last_msg.pose.position.x - last_pos.pose.position.x;
+    auto y = last_msg.pose.position.y - last_pos.pose.position.y;
+    auto z = last_msg.pose.position.z - last_pos.pose.position.z;
+    tf::Vector3 vec(x,y,z);
 
-    // double vecLen = vec.length();
-    // vec.normalize();
-    // vec *= 0.0 * std::min(1.0, vecLen);
+    double vecLen = vec.length();
+    vec.normalize();
+    vec *= 2.0 * std::min(0.5, vecLen);
     // // printf("dist: %f\n", vec.length());
 
-    // geometry_msgs::TwistStamped vel;
-    // vel.twist.linear.x = vec.getX();
-    // vel.twist.linear.y = vec.getY();
-    // vel.twist.linear.z = vec.getZ();
-
-
-    // geometry_msgs::PoseStamped increased_distance_pos;
-    // increased_distance_pos.pose.position.x = last_msg.pose.position.x + vec.getX();
-    // increased_distance_pos.pose.position.y = last_msg.pose.position.y + vec.getY();
-    // increased_distance_pos.pose.position.z = last_msg.pose.position.z + vec.getZ();
-    // // increased_distance_pos.pose.orientation = last_msg.pose.orientation;
-    // increased_distance_pos.pose.orientation.x = last_msg.pose.orientation.y;
-    // increased_distance_pos.pose.orientation.y = last_msg.pose.orientation.z;
-    // increased_distance_pos.pose.orientation.z = last_msg.pose.orientation.w;
-    // increased_distance_pos.pose.orientation.w = last_msg.pose.orientation.x;
-
-
-    // flip 90 deg
-    auto rot_msg = last_msg;
-    rot_msg.pose.position.x = -(last_msg.pose.position.y);
-    rot_msg.pose.position.y = (last_msg.pose.position.x);
-
     // Fix the order of the quaternion coordinates 
+    auto rot_msg = last_msg;
+    rot_msg.pose.position.x = last_msg.pose.position.x + vec.getX();
+    rot_msg.pose.position.y = last_msg.pose.position.y + vec.getY();
+    rot_msg.pose.position.z = last_msg.pose.position.z + vec.getZ();
     rot_msg.pose.orientation.x = last_msg.pose.orientation.y;
     rot_msg.pose.orientation.y = last_msg.pose.orientation.z;
     rot_msg.pose.orientation.z = last_msg.pose.orientation.w;
     rot_msg.pose.orientation.w = last_msg.pose.orientation.x;
 
+    // Publish setpoint for vizualization
+    current_waypoint_publisher.publish(rot_msg);
 
-    printf("published (%f.3, %f.3\n", rot_msg.pose.position.x, rot_msg.pose.position.y);
+    // 90 deg fix
+    rot_msg.pose.position.x = -(last_msg.pose.position.y);
+    rot_msg.pose.position.y = (last_msg.pose.position.x);
+
+    // Publish setpoint to Mavros
     mavros_waypoint_publisher.publish(rot_msg);
-    
+
 
 
     // auto q0 = increased_distance_pos.pose.orientation.w;
@@ -110,22 +97,25 @@ void PathHandlerNode::ReceiveMessage(const geometry_msgs::PoseStamped& pose_msg)
 }
 
 void PathHandlerNode::ReceivePath(const nav_msgs::Path& msg) {
-
   path.clear();
   for (auto p : msg.poses) {
     path.push_back(p);
   }
-  last_msg = path[0];
+  if (path.size() > 0) {
+    last_msg = path[0];
+  }
+  else {
+    printf("  Received empty path\n");
+  }
 }
 
 void PathHandlerNode::PositionCallback(
     const geometry_msgs::PoseStamped& pose_msg) {
 
   last_pos = pose_msg;
-  // Rotate 90 deg
+    // 90 deg fix
   last_pos.pose.position.x = (pose_msg.pose.position.y);
   last_pos.pose.position.y = -(pose_msg.pose.position.x);
-  printf("Am at (%f.3,%f.3), but want to go to (%f.3,%f.3) \n\n", last_pos.pose.position.x, last_pos.pose.position.y, last_msg.pose.position.x, last_msg.pose.position.y);
   // Check if we are close enough to current goal to get the next part of the path
   if (path.size() > 0 && abs(last_msg.pose.position.x - last_pos.pose.position.x) < 1 
                       && abs(last_msg.pose.position.y - last_pos.pose.position.y) < 1

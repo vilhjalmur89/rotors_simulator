@@ -189,8 +189,8 @@ void GazeboMavlinkInterface::MavlinkControlCallback(const mavros_msgs::Mavlink::
     inputs.control[7] =(double)act_msg.aux4;
 
     // publish message
-    double scaling = 260;
-    double offset = 600;
+    double scaling = 340;
+    double offset = 500;
 
     mav_msgs::CommandMotorSpeedPtr turning_velocities_msg(new mav_msgs::CommandMotorSpeed);
 

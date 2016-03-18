@@ -282,13 +282,14 @@ void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
   for (int i=1; i < path.size()-1; ++i) {
     Cell p = path[i];
     double newYaw = angle(p, path[i+1], lastYaw);
-    // if (newYaw != lastYaw) {
+    // if (newYaw != lastYaw) {   // only publish corner points
       waypoints.push_back(WaypointWithTime(0, p.x()+0.5, p.y()+0.5, p.z()+0.5, newYaw));
     // }
     lastYaw = newYaw;
   }
   waypoints.push_back(WaypointWithTime(0, path[path.size()-1].x()+0.5, path[path.size()-1].y()+0.5, 2, 0));
 
+  // increaseResolution(2.0, 10, 1000);
   // increaseResolution(0.3, 0.05, 0.1 * kNanoSecondsInSecond);
 }
 
@@ -306,24 +307,35 @@ void GlobalPlanner::goBack() {
 // bool GlobalPlanner::isGoalBlocked() { }
 
 
-bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
-  // A* to find a path from currPos to goalPos, true iff it found a path
+void GlobalPlanner::publishExploredCells(std::set<Cell> & seen) {
 
+}
+
+bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   Cell s = Cell(currPos);
   Cell t = Cell(goalPos.x(), goalPos.y(), 2);
+  std::set<Cell> seen;
+  bool foundPath = FindPath(path, s, t, seen);
+  publishExploredCells(seen);
+  return foundPath;
+}
+
+bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell s, Cell t, std::set<Cell> & seen) {
+  // A* to find a path from currPos to goalPos, true iff it found a path
+
+  
   ROS_INFO("Planning a path from (%d, %d) to (%d, %d)", s.x(), s.y(), t.x(), t.y());
 
   // Initialize containers
   std::map<Cell, Cell> parent;
   std::map<Cell, double> distance;
-  std::set<Cell> seen;
   std::priority_queue<CellDistancePair, std::vector<CellDistancePair>, CompareDist> pq;                 
   pq.push(std::make_pair(s, 0.0));
   distance[s] = 0.0;
   int numIter = 0;
 
-  // Search until t is found, all reachable cells have been found or run too long
-  while (!pq.empty() && numIter++ < maxIterations) {
+  // Search until all reachable cells have been found, run out of time or t is found,
+  while (!pq.empty() && numIter < maxIterations && seen.find(t) == seen.end()) {
     CellDistancePair cellDistU = pq.top(); pq.pop();
     Cell u = cellDistU.first;
     double d = cellDistU.second;
@@ -331,6 +343,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
       continue;
     }
     seen.insert(u);
+    numIter++;
     if (u == t) {
       break;  // Found a path
     }
@@ -368,12 +381,12 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   pathCells.clear();
   while (walker != s) {
     path.push_back(walker);
-    pathCells.insert(walker);   // TODO: Move outside of function
+    pathCells.insert(walker);   // TODO: Move outside of function, also add both neighbors of diagonal move
     walker = parent[walker];
   }
   std::reverse(path.begin(),path.end());
 
-  // ROS_INFO("Found path with %d iterations, iterations / distance squared: %f", numIter, numIter / squared(path.size()));
+  ROS_INFO("Found path with %d iterations, iterations / distance squared: %f", numIter, numIter / squared(path.size()));
   
   return true;
 }  

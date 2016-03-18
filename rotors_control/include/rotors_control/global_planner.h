@@ -132,14 +132,14 @@ class GlobalPlanner {
   Cell goalPos;
   double yaw;
   bool goingBack = false;
-  double overEstimateFactor = 2.0;
+  double overEstimateFactor = 1.5;
   int minHeight = 1;
   int maxHeight = 12;
   double maxPathProb = -1.0;
-  double maxBailProb = 2.0;
+  double maxBailProb = 1.0;
   double inf = std::numeric_limits<double>::infinity();
   int maxIterations = 100000;
-  double riskFactor = 2.0;
+  double riskFactor = 6.0;
   double neighborRiskFlow = 1.0;
   double explorePenalty = 0.1;
   double upPenalty = 5;
@@ -156,7 +156,9 @@ class GlobalPlanner {
   geometry_msgs::PoseStamped createPoseMsg(double x, double y, double z, double yaw);
   void pathToWaypoints(std::vector<Cell> & path);
   void goBack();
+  void publishExploredCells(std::set<Cell> & seen);
   bool FindPath(std::vector<Cell> & path);
+  bool FindPath(std::vector<Cell> & path, const Cell s, Cell t, std::set<Cell> & seen);
   bool getGlobalPath();
 
 
