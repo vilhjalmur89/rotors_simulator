@@ -108,7 +108,7 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
         }
       }
       if (it.getSize() > 1) {
-        // TODO: Needs to a loop for large leafs
+        // TODO: Need a loop for large leafs
         // ROS_INFO("%d, %d, %d: %d %f", cell.x(), cell.y(), cell.z(), it.getSize(), it->getValue());
       }
     }
@@ -170,7 +170,6 @@ void GlobalPlanner::truncatePath() {
   waypoints.resize(0);
 }
 
-// TODO: Add points on straight line to goal.
 void GlobalPlanner::getOpenNeighbors(Cell cell, std::vector<CellDistancePair> & neighbors) const {
   // Fill neighbors with the 8 horizontal and 2 vertical non-occupied neigbors
   // It's long because it uses the minimum number of 'if's 
@@ -278,14 +277,23 @@ void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
   // Use actual position instead of the center of the cell
   waypoints.push_back(WaypointWithTime(0, currPos.x, currPos.y, currPos.z, yaw));   
   double lastYaw = yaw;
-  path.push_back(path[path.size()-1]); // Needed if every other element of the path is discarded
+
+  path.push_back(path[path.size()-1]); // Needed if every other cell of the path is discarded
   for (int i=1; i < path.size()-1; ++i) {
     Cell p = path[i];
+    Cell lastP = path[i-1];
     double newYaw = angle(p, path[i+1], lastYaw);
     // if (newYaw != lastYaw) {   // only publish corner points
       waypoints.push_back(WaypointWithTime(0, p.x()+0.5, p.y()+0.5, p.z()+0.5, newYaw));
     // }
     lastYaw = newYaw;
+
+    pathCells.insert(p);
+    if (p.x() != lastP.x() && p.y() != lastP.y()) {
+      // For diagonal edges we need the two common neighbors of p and lastP to non occupied
+      pathCells.insert(Cell(p.x(), lastP.y(), p.z()));
+      pathCells.insert(Cell(lastP.x(), p.y(), p.z()));
+    }
   }
   waypoints.push_back(WaypointWithTime(0, path[path.size()-1].x()+0.5, path[path.size()-1].y()+0.5, 2, 0));
 
@@ -376,7 +384,6 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell s, Cell t) {
   pathCells.clear();
   while (walker != s) {
     path.push_back(walker);
-    pathCells.insert(walker);   // TODO: Move outside of function, also add both neighbors of diagonal move
     walker = parent[walker];
   }
   std::reverse(path.begin(),path.end());

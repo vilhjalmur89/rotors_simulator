@@ -38,7 +38,6 @@
 
 using mavros::UAS;
 
-
 namespace rotors_control {
 
 
@@ -46,25 +45,12 @@ namespace rotors_control {
 GlobalPlannerNode::GlobalPlannerNode() {
   ros::NodeHandle nh;
 
-  cmd_octomap_full_sub_ = nh.subscribe(
-      "/octomap_full", 1,
-      &GlobalPlannerNode::OctomapFullCallback, this);
+  cmd_octomap_full_sub_ = nh.subscribe("/octomap_full", 1, &GlobalPlannerNode::OctomapFullCallback, this);
+  cmd_ground_truth_sub_ = nh.subscribe("/mavros/local_position/pose", 1,&GlobalPlannerNode::PositionCallback, this);
+  cmd_clicked_point_sub_ = nh.subscribe("/clicked_point", 1,&GlobalPlannerNode::ClickedPointCallback, this);
 
-  cmd_ground_truth_sub_ = nh.subscribe(
-      "/mavros/local_position/pose", 1,
-      &GlobalPlannerNode::PositionCallback, this);
-
-  cmd_clicked_point_sub_ = nh.subscribe(
-      "/clicked_point", 1,
-      &GlobalPlannerNode::ClickedPointCallback, this);
-
-  cmd_global_path_pub_ = 
-      nh.advertise<nav_msgs::Path>(
-      "/global_path", 10);
-
-    cmd_explored_cells_pub_ = 
-      nh.advertise<visualization_msgs::MarkerArray>(
-      "/explored_cells", 10);
+  cmd_global_path_pub_ = nh.advertise<nav_msgs::Path>("/global_path", 10);
+  cmd_explored_cells_pub_ = nh.advertise<visualization_msgs::MarkerArray>("/explored_cells", 10);
 }
 
 GlobalPlannerNode::~GlobalPlannerNode() { }
@@ -126,25 +112,10 @@ void GlobalPlannerNode::PublishPath() {
     poseMsg.pose.position.x = wp.position[0];
     poseMsg.pose.position.y = wp.position[1];
     poseMsg.pose.position.z = wp.position[2];
-    // poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(wp.yaw); // 90 deg fix
-    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw( (-wp.yaw + 3.1415/2.0)); 
+    // poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(wp.yaw); 
+    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw( (-wp.yaw + 3.1415/2.0));  // 90 deg fix
     poseMsg.pose.orientation.x = poseMsg.pose.orientation.z;
-    // poseMsg.pose.orientation.w = poseMsg.pose.orientation.z;
     poseMsg.pose.orientation.z = 0.0;
-
-    // Eigen::Quaterniond q = UAS::quaternion_from_rpy(0.0, 0.0, 0.0);
-    // Eigen::Vector3d v(0.0, 0.0, wp.yaw);
-    // Eigen::Quaterniond q = Eigen::Quaterniond(
-    //                      Eigen::AngleAxisd(v.z(), Eigen::Vector3d::UnitZ()) *
-    //                      Eigen::AngleAxisd(v.y(), Eigen::Vector3d::UnitY()) *
-    //                      Eigen::AngleAxisd(v.x(), Eigen::Vector3d::UnitX())
-    //                      );
-    // tf::quaternionEigenToMsg(q, poseMsg.pose.orientation);
-   // poseMsg.pose.orientation.x = q.x();
-   // poseMsg.pose.orientation.y = q.y();
-   // poseMsg.pose.orientation.z = q.z();
-   // poseMsg.pose.orientation.w = q.w();
-
     path.poses.push_back(poseMsg);
   }
   cmd_global_path_pub_.publish(path);
