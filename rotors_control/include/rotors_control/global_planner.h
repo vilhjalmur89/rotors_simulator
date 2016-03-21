@@ -124,7 +124,8 @@ class GlobalPlanner {
                                     0.3, 0.2, 0.1, 0.1, 0.1, 0.1};
   std::set<Cell> occupied;
   std::unordered_map<Cell, double, HashCell> occProb;
-  std::set<Cell> pathCells;
+  std::set<Cell> seen;        // Set of cells that were explored in last search
+  std::set<Cell> pathCells;   // Set of cells that are on current path
   std::vector<WaypointWithTime> waypoints;    // TODO: remove and use pathMsg
   nav_msgs::Path pathMsg;
   std::vector<Cell> pathBack;
@@ -132,7 +133,7 @@ class GlobalPlanner {
   Cell goalPos;
   double yaw;
   bool goingBack = false;
-  double overEstimateFactor = 1.5;
+  double overEstimateFactor = 2.0;
   int minHeight = 1;
   int maxHeight = 12;
   double maxPathProb = -1.0;
@@ -156,9 +157,8 @@ class GlobalPlanner {
   geometry_msgs::PoseStamped createPoseMsg(double x, double y, double z, double yaw);
   void pathToWaypoints(std::vector<Cell> & path);
   void goBack();
-  void publishExploredCells(std::set<Cell> & seen);
   bool FindPath(std::vector<Cell> & path);
-  bool FindPath(std::vector<Cell> & path, const Cell s, Cell t, std::set<Cell> & seen);
+  bool FindPath(std::vector<Cell> & path, const Cell s, Cell t);
   bool getGlobalPath();
 
 

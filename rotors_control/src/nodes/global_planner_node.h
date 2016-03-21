@@ -25,11 +25,14 @@
 #include <Eigen/Eigen>
 #include <stdio.h>
 #include <set>
+#include <math.h>           // abs
 
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <mav_msgs/eigen_mav_msgs.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <visualization_msgs/Marker.h>
+#include <std_msgs/ColorRGBA.h>
 #include <nav_msgs/Path.h>
 #include <nav_msgs/Odometry.h>
 #include <ros/callback_queue.h>
@@ -66,6 +69,7 @@ class GlobalPlannerNode {
   // Publishers
   // ros::Publisher cmd_multi_dof_joint_trajectory_pub_;
   ros::Publisher cmd_global_path_pub_;
+  ros::Publisher cmd_explored_cells_pub_;
 
   // // lee_controler_publisher
   // ros::Publisher wp_pub;
@@ -74,25 +78,15 @@ class GlobalPlannerNode {
   // // path_handler publisher
   // ros::Publisher path_handler_publisher;
 
-  void PositionCallback(
-      const geometry_msgs::PoseStamped& msg);
-
-
-  void OctomapCallback(
-      const visualization_msgs::MarkerArray& msg);
-
-  void OctomapFullCallback(
-      const octomap_msgs::Octomap& msg);
+  void PositionCallback(const geometry_msgs::PoseStamped& msg);
+  void ClickedPointCallback(const geometry_msgs::PointStamped& msg);
+  void OctomapCallback(const visualization_msgs::MarkerArray& msg);
+  void OctomapFullCallback(const octomap_msgs::Octomap& msg);
 
   void PlanPath();
 
   void PublishPath();
-  
-  void ClickedPointCallback(
-      const geometry_msgs::PointStamped& msg);
-
-
-
+  void PublishExploredCells();
 
 };
 }

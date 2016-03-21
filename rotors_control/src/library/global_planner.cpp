@@ -272,7 +272,7 @@ double GlobalPlanner::getRisk(Cell & cell){
     return poseMsg;
  }
 
-// TODO: Straight to msg
+// TODO: Straight to msg, also fill in pathCells here 
 void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
   waypoints.resize(0);
   // Use actual position instead of the center of the cell
@@ -307,26 +307,21 @@ void GlobalPlanner::goBack() {
 // bool GlobalPlanner::isGoalBlocked() { }
 
 
-void GlobalPlanner::publishExploredCells(std::set<Cell> & seen) {
-
-}
-
 bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   Cell s = Cell(currPos);
   Cell t = Cell(goalPos.x(), goalPos.y(), 2);
-  std::set<Cell> seen;
-  bool foundPath = FindPath(path, s, t, seen);
-  publishExploredCells(seen);
+  bool foundPath = FindPath(path, s, t);
   return foundPath;
 }
 
-bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell s, Cell t, std::set<Cell> & seen) {
+bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell s, Cell t) {
   // A* to find a path from currPos to goalPos, true iff it found a path
 
   
   ROS_INFO("Planning a path from (%d, %d) to (%d, %d)", s.x(), s.y(), t.x(), t.y());
 
   // Initialize containers
+  seen.clear();
   std::map<Cell, Cell> parent;
   std::map<Cell, double> distance;
   std::priority_queue<CellDistancePair, std::vector<CellDistancePair>, CompareDist> pq;                 
@@ -338,7 +333,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell s, Cell t, std
   while (!pq.empty() && numIter < maxIterations && seen.find(t) == seen.end()) {
     CellDistancePair cellDistU = pq.top(); pq.pop();
     Cell u = cellDistU.first;
-    double d = cellDistU.second;
+    double d = distance[u];
     if (seen.find(u) != seen.end()) {
       continue;
     }
@@ -364,8 +359,8 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell s, Cell t, std
         parent[v] = u;
         distance[v] = newDist;
         // TODO: try Dynamic Weighting in stead of a constant overEstimateFactor
-        // double heuristic = newDist + overEstimateFactor*diagDistance2D(v, t);
-        double heuristic = newDist + overEstimateFactor*distance2D(v, t);
+        double heuristic = newDist + overEstimateFactor*diagDistance2D(v, t);
+        // double heuristic = newDist + overEstimateFactor*distance2D(v, t);
         pq.push(std::make_pair(v, heuristic));
       }
     }

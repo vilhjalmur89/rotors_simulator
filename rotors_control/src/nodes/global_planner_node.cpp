@@ -25,7 +25,6 @@
 
 #include "rotors_control/parameters_ros.h"
 
-
 #include <tf/transform_listener.h> // getYaw createQuaternionMsgFromYaw 
 #include <geometry_msgs/Quaternion.h>
 #include <math.h> // floor
@@ -62,6 +61,10 @@ GlobalPlannerNode::GlobalPlannerNode() {
   cmd_global_path_pub_ = 
       nh.advertise<nav_msgs::Path>(
       "/global_path", 10);
+
+    cmd_explored_cells_pub_ = 
+      nh.advertise<visualization_msgs::MarkerArray>(
+      "/explored_cells", 10);
 }
 
 GlobalPlannerNode::~GlobalPlannerNode() { }
@@ -104,7 +107,9 @@ void GlobalPlannerNode::OctomapFullCallback(
 
 void GlobalPlannerNode::PlanPath() {
   ROS_INFO("Start planning path.");
-  if (!global_planner.getGlobalPath()) {
+  bool foundPath = global_planner.getGlobalPath();
+  PublishExploredCells();
+  if (!foundPath) {
     ROS_INFO("Failed to find a path");
     return;
   }
@@ -117,7 +122,7 @@ void GlobalPlannerNode::PublishPath() {
 
   for (WaypointWithTime wp : global_planner.waypoints) {
     geometry_msgs::PoseStamped poseMsg;
-    poseMsg.header.frame_id="/world";
+    poseMsg.header.frame_id = "/world";
     poseMsg.pose.position.x = wp.position[0];
     poseMsg.pose.position.y = wp.position[1];
     poseMsg.pose.position.z = wp.position[2];
@@ -144,6 +149,41 @@ void GlobalPlannerNode::PublishPath() {
   }
   cmd_global_path_pub_.publish(path);
   printf("\n    Published Full Path \n");
+}
+
+void GlobalPlannerNode::PublishExploredCells() {
+  // Publish the cells that were explored in the last search
+  visualization_msgs::MarkerArray msg;
+
+  // The first marker deletes the ones from previous search
+  int id = 0;
+  visualization_msgs::Marker marker;
+  marker.id = id;
+  marker.action = 3;        // same as visualization_msgs::Marker::DELETEALL
+  msg.markers.push_back(marker);
+  
+  id = 1;
+  std::set<Cell>::iterator it;
+  for (it = global_planner.seen.begin(); it != global_planner.seen.end(); ++it, ++id) {
+    visualization_msgs::Marker marker;
+    marker.id = id;
+    marker.header.frame_id = "/world";
+    marker.header.stamp = ros::Time();
+    marker.type = visualization_msgs::Marker::CUBE;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.scale.x = 0.1;
+    marker.scale.y = marker.scale.x;
+    marker.scale.z = marker.scale.x;
+    marker.pose.position.x = it->x() + 0.5;
+    marker.pose.position.y = it->y() + 0.5;
+    marker.pose.position.z = it->z() + 0.5;
+    marker.color.r = (it->z() / 5.0);
+    marker.color.g = 1.0 - 0.4 * std::abs((it->z() - 2.5));
+    marker.color.b = 1.0 - (it->z() / 5.0);
+    marker.color.a = 1.0;
+    msg.markers.push_back(marker);
+  }
+  cmd_explored_cells_pub_.publish(msg);
 }
 
 }
