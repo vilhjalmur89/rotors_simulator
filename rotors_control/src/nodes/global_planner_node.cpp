@@ -55,23 +55,36 @@ GlobalPlannerNode::GlobalPlannerNode() {
 
 GlobalPlannerNode::~GlobalPlannerNode() { }
 
+void GlobalPlannerNode::SetNewGoal(Cell goal) {
+  global_planner.setGoal(goal);
+  PlanPath();
+}
 
 void GlobalPlannerNode::PositionCallback(
     const geometry_msgs::PoseStamped& msg) {
 
   auto rot_msg = msg;
-    // 90 deg fix
+  
+  // 90 deg fix
   rot_msg.pose.position.x = (msg.pose.position.y);
   rot_msg.pose.position.y = -(msg.pose.position.x);
-  global_planner.setPose(rot_msg.pose.position, tf::getYaw(rot_msg.pose.orientation));
+
+  global_planner.setPose(rot_msg.pose.position, tf::getYaw(rot_msg.pose.orientation));    // TODO: call with just pose
+
+  // If there is another goal and we are either at current goal or it is blocked, we set a new goal
+  if (fileGoals.size() > 0 && 
+     (Cell(global_planner.currPos) == global_planner.goalPos || global_planner.goalIsBlocked)) {
+    
+    Cell newGoal = fileGoals[0];
+    fileGoals.erase(fileGoals.begin());
+    SetNewGoal(newGoal);
+  }
 }
 
 void GlobalPlannerNode::ClickedPointCallback(
     const geometry_msgs::PointStamped& msg) {
 
-  global_planner.goalPos = Cell(msg.point);
-  global_planner.goingBack = false;
-  PlanPath();
+  SetNewGoal(Cell(msg.point));
 }
 
 void GlobalPlannerNode::OctomapFullCallback(
@@ -88,7 +101,6 @@ void GlobalPlannerNode::OctomapFullCallback(
     global_planner.goalPos = tmp;             // Publish cut-off path
     PlanPath();                               // Plan a whole new path
   }
-
 }
 
 void GlobalPlannerNode::PlanPath() {
@@ -113,9 +125,7 @@ void GlobalPlannerNode::PublishPath() {
     poseMsg.pose.position.y = wp.position[1];
     poseMsg.pose.position.z = wp.position[2];
     // poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(wp.yaw); 
-    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw( (-wp.yaw + 3.1415/2.0));  // 90 deg fix
-    poseMsg.pose.orientation.x = poseMsg.pose.orientation.z;
-    poseMsg.pose.orientation.z = 0.0;
+    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw( (wp.yaw + 3.1415/2.0));  // 90 deg fix
     path.poses.push_back(poseMsg);
   }
   cmd_global_path_pub_.publish(path);
@@ -162,6 +172,32 @@ void GlobalPlannerNode::PublishExploredCells() {
 int main(int argc, char** argv) {
   ros::init(argc, argv, "global_planner_node");
   rotors_control::GlobalPlannerNode global_planner_node;
+
+  ros::V_string args;
+  ros::removeROSArgs(argc, argv, args);
+
+  if (args.size() > 1) {
+    printf("    ARGS: %s", args.at(1).c_str());
+    std::ifstream wp_file(args.at(1).c_str());
+    if (wp_file.is_open()) {
+      double x, y, z;
+      // Only read complete waypoints.
+      while (wp_file >> x >> y >> z) {
+        global_planner_node.fileGoals.push_back(rotors_control::Cell(x, y, z));
+      }
+      wp_file.close();
+      ROS_INFO("  Read %d waypoints.", global_planner_node.fileGoals.size());
+    }
+    else {
+      ROS_ERROR_STREAM("Unable to open poses file: " << args.at(1));
+      return -1;
+    }
+  }
+  else {
+    ROS_INFO("  No goal file given.");
+  }
+
+
   ros::spin();
 
   return 0;

@@ -88,6 +88,12 @@ void GlobalPlanner::setPose(const geometry_msgs::Point newPos, double newYaw) {
   }
 }
 
+void GlobalPlanner::setGoal(const Cell goal) {
+  goalPos = goal;
+  goingBack = false;
+  goalIsBlocked = false;
+}
+
 bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
   // Returns false iff current path has an obstacle
   bool pathIsBlocked = false;
@@ -275,7 +281,7 @@ double GlobalPlanner::getRisk(Cell & cell){
 void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
   waypoints.resize(0);
   // Use actual position instead of the center of the cell
-  waypoints.push_back(WaypointWithTime(0, currPos.x, currPos.y, currPos.z, yaw));   
+  // waypoints.push_back(WaypointWithTime(0, currPos.x, currPos.y, currPos.z, yaw));   
   double lastYaw = yaw;
 
   path.push_back(path[path.size()-1]); // Needed if every other cell of the path is discarded
@@ -295,7 +301,7 @@ void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
       pathCells.insert(Cell(lastP.x(), p.y(), p.z()));
     }
   }
-  waypoints.push_back(WaypointWithTime(0, path[path.size()-1].x()+0.5, path[path.size()-1].y()+0.5, 2, 0));
+  waypoints.push_back(WaypointWithTime(0, path[path.size()-1].x()+0.5, path[path.size()-1].y()+0.5, 2, lastYaw));
 
   // increaseResolution(2.0, 10, 1000);
   // increaseResolution(0.3, 0.05, 0.1 * kNanoSecondsInSecond);
@@ -367,9 +373,10 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell s, Cell t) {
         parent[v] = u;
         distance[v] = newDist;
         // TODO: try Dynamic Weighting in stead of a constant overEstimateFactor
-        double heuristic = newDist + overEstimateFactor*diagDistance2D(v, t);
+        double heuristic = diagDistance2D(v, t) + upPenalty * std::max(0, t.z() - v.z());
+        double overestimatedHeuristic = newDist + overEstimateFactor*heuristic;
         // double heuristic = newDist + overEstimateFactor*distance2D(v, t);
-        pq.push(std::make_pair(v, heuristic));
+        pq.push(std::make_pair(v, overestimatedHeuristic));
       }
     }
   }
@@ -402,6 +409,7 @@ bool GlobalPlanner::getGlobalPath() {
   if (occupied.find(t) != occupied.end()) {
     // If goal is occupied, no path is published
     ROS_INFO("Goal position is occupied");
+    goalIsBlocked = true;
     return false;
   }
   else if (occupied.find(s) != occupied.end()) {

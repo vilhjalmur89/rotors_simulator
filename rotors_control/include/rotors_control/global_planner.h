@@ -130,7 +130,7 @@ class GlobalPlanner {
   nav_msgs::Path pathMsg;
   std::vector<Cell> pathBack;
   geometry_msgs::Point currPos;
-  Cell goalPos;
+  Cell goalPos = Cell(0, 0, 2);
   double yaw;
   bool goingBack = false;
   double overEstimateFactor = 2.0;
@@ -144,11 +144,13 @@ class GlobalPlanner {
   double neighborRiskFlow = 1.0;
   double explorePenalty = 0.1;
   double upPenalty = 5;
+  bool goalIsBlocked = false;
 
   GlobalPlanner();
   ~GlobalPlanner();
 
   void setPose(geometry_msgs::Point newPos, double newYaw);
+  void setGoal(const Cell goal);
   bool updateFullOctomap(const octomap_msgs::Octomap& msg);
   void increaseResolution(double minDist, double minRot, double minTime);
   void truncatePath();

@@ -49,6 +49,7 @@ namespace rotors_control {
 
 class GlobalPlannerNode {
  public:
+  std::vector<Cell> fileGoals;
   GlobalPlannerNode();
   ~GlobalPlannerNode();
 
@@ -78,6 +79,7 @@ class GlobalPlannerNode {
   // // path_handler publisher
   // ros::Publisher path_handler_publisher;
 
+  void SetNewGoal(Cell goal);
   void PositionCallback(const geometry_msgs::PoseStamped& msg);
   void ClickedPointCallback(const geometry_msgs::PointStamped& msg);
   void OctomapCallback(const visualization_msgs::MarkerArray& msg);
