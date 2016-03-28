@@ -66,19 +66,27 @@ void GlobalPlannerNode::PositionCallback(
   auto rot_msg = msg;
   
   // 90 deg fix
-  rot_msg.pose.position.x = (msg.pose.position.y);
-  rot_msg.pose.position.y = -(msg.pose.position.x);
+  // rot_msg.pose.position.x = (msg.pose.position.y);
+  // rot_msg.pose.position.y = -(msg.pose.position.x);
 
   global_planner.setPose(rot_msg.pose.position, tf::getYaw(rot_msg.pose.orientation));    // TODO: call with just pose
 
   // If there is another goal and we are either at current goal or it is blocked, we set a new goal
+  // TODO: Fix cell comparison
   if (fileGoals.size() > 0 && 
-     (Cell(global_planner.currPos) == global_planner.goalPos || global_planner.goalIsBlocked)) {
+        ((Cell(global_planner.currPos).x() == global_planner.goalPos.x() 
+        && Cell(global_planner.currPos).y() == global_planner.goalPos.y()) 
+        || global_planner.goalIsBlocked)) {
     
     Cell newGoal = fileGoals[0];
     fileGoals.erase(fileGoals.begin());
     SetNewGoal(newGoal);
   }
+  // else {
+  //   Cell x = global_planner.currPos;
+  //   Cell y = global_planner.goalPos;
+  //   printf("     %d, (%d, %d, %d), (%d, %d, %d)", (int)fileGoals.size(), x.x(), x.y(), x.z(), y.x(), y.y(), y.z());
+  // }
 }
 
 void GlobalPlannerNode::ClickedPointCallback(
@@ -124,8 +132,8 @@ void GlobalPlannerNode::PublishPath() {
     poseMsg.pose.position.x = wp.position[0];
     poseMsg.pose.position.y = wp.position[1];
     poseMsg.pose.position.z = wp.position[2];
-    // poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(wp.yaw); 
-    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw( (wp.yaw + 3.1415/2.0));  // 90 deg fix
+    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(wp.yaw); 
+    // poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw( (wp.yaw + 3.1415/2.0));  // 90 deg fix
     path.poses.push_back(poseMsg);
   }
   cmd_global_path_pub_.publish(path);

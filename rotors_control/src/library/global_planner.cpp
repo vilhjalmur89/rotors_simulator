@@ -22,6 +22,8 @@
 
 namespace rotors_control {
 
+
+// TODO: Create a common.h
 double angle(Cell pos, Cell p, double lastAng) {
   int dx = p.x() - pos.x();
   int dy = p.y() - pos.y();
@@ -92,6 +94,7 @@ void GlobalPlanner::setGoal(const Cell goal) {
   goalPos = goal;
   goingBack = false;
   goalIsBlocked = false;
+  printf("Set goal: %d, %d, %d \n", goal.x(), goal.y(), goal.z());
 }
 
 bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
@@ -239,6 +242,12 @@ void GlobalPlanner::getOpenNeighbors(Cell cell, std::vector<CellDistancePair> & 
   }
 }
 
+double GlobalPlanner::getTurnSmoothness(const Node u, const Node v) {
+  Cell uDiff = u.cell - u.parent;
+  Cell vDiff = v.cell - v.parent;
+  return std::abs(uDiff.x() - vDiff.x()) + std::abs(uDiff.y() - vDiff.y());
+}
+
 double GlobalPlanner::getRisk(Cell & cell){
   // Computes the risk from the cell, its neighbors and the prior
 
@@ -265,6 +274,8 @@ double GlobalPlanner::getRisk(Cell & cell){
   return risk * prior;
 }
 
+
+ // TODO: Use this 
  geometry_msgs::PoseStamped GlobalPlanner::createPoseMsg(double x, double y, double z, double yaw) {
     geometry_msgs::PoseStamped poseMsg;
     poseMsg.header.frame_id="/world";
@@ -283,8 +294,9 @@ void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
   // Use actual position instead of the center of the cell
   // waypoints.push_back(WaypointWithTime(0, currPos.x, currPos.y, currPos.z, yaw));   
   double lastYaw = yaw;
-
+  pathCells.clear();
   path.push_back(path[path.size()-1]); // Needed if every other cell of the path is discarded
+
   for (int i=1; i < path.size()-1; ++i) {
     Cell p = path[i];
     Cell lastP = path[i-1];
@@ -325,13 +337,12 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   Cell s = Cell(currPos);
   Cell t = Cell(goalPos.x(), goalPos.y(), 2);
   bool foundPath = FindPath(path, s, t);
+  foundPath = FindSmoothPath(path, s, t, s);
   return foundPath;
 }
 
 bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell s, Cell t) {
   // A* to find a path from currPos to goalPos, true iff it found a path
-
-  
   ROS_INFO("Planning a path from (%d, %d) to (%d, %d)", s.x(), s.y(), t.x(), t.y());
 
   // Initialize containers
@@ -344,7 +355,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell s, Cell t) {
   int numIter = 0;
 
   // Search until all reachable cells have been found, run out of time or t is found,
-  while (!pq.empty() && numIter < maxIterations && seen.find(t) == seen.end()) {
+  while (!pq.empty() && numIter < maxIterations) {
     CellDistancePair cellDistU = pq.top(); pq.pop();
     Cell u = cellDistU.first;
     double d = distance[u];
@@ -373,6 +384,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell s, Cell t) {
         parent[v] = u;
         distance[v] = newDist;
         // TODO: try Dynamic Weighting in stead of a constant overEstimateFactor
+        // TODO: path smoothness heuristic
         double heuristic = diagDistance2D(v, t) + upPenalty * std::max(0, t.z() - v.z());
         double overestimatedHeuristic = newDist + overEstimateFactor*heuristic;
         // double heuristic = newDist + overEstimateFactor*distance2D(v, t);
@@ -388,7 +400,6 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell s, Cell t) {
 
   // Get the path by walking from t back to s
   Cell walker = t;
-  pathCells.clear();
   while (walker != s) {
     path.push_back(walker);
     walker = parent[walker];
@@ -399,6 +410,85 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell s, Cell t) {
   
   return true;
 }  
+
+bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell start, 
+                                   const Cell t, const Cell startParent) {
+
+  // A* to find a path from currPos to goalPos, true iff it found a path
+  ROS_INFO("Planning a path from (%d, %d) to (%d, %d)", start.x(), start.y(), t.x(), t.y());
+
+  // Initialize containers
+  Node s = Node(start, startParent);
+  Node bestGoalNode;
+  seen.clear();
+  std::set<Node> seenNodes;
+  std::map<Node, Node> parent;
+  std::map<Node, double> distance;
+  std::priority_queue<NodeDistancePair, std::vector<NodeDistancePair>, CompareDist> pq;                 
+  pq.push(std::make_pair(s, 0.0));
+  distance[s] = 0.0;
+  int numIter = 0;
+
+  while (!pq.empty() && numIter < maxIterations) {
+    NodeDistancePair nodeDistU = pq.top(); pq.pop();
+    Node u = nodeDistU.first;
+    double d = distance[u];
+    if (seenNodes.find(u) != seenNodes.end()) {
+      continue;
+    }
+    seenNodes.insert(u);
+    seen.insert(u.cell);
+    numIter++;
+    if (u.cell == t) {
+      bestGoalNode = u;
+      ROS_INFO("FOUND PATH");
+      break;  // Found a path
+    }
+
+    std::vector<CellDistancePair> neighbors;
+    getOpenNeighbors(u.cell, neighbors);
+    for (auto cellDistV : neighbors) {
+      Cell vCell = cellDistV.first;
+      Node v = Node(vCell, u.cell);
+      double costOfEdge = cellDistV.second;
+      double risk = getRisk(v.cell);
+      double smoothness = getTurnSmoothness(u, v);
+      double newDist = d + costOfEdge + riskFactor * risk + smoothness;
+      double oldDist = inf;
+      if (distance.find(v) != distance.end()) {
+        oldDist = distance[v];
+      }
+      if (newDist < oldDist) {
+      // Found a better path to v, have to add v to the queue 
+        parent[v] = u;
+        distance[v] = newDist;
+        // TODO: try Dynamic Weighting in stead of a constant overEstimateFactor
+        // TODO: path smoothness heuristic
+        double heuristic = diagDistance2D(v.cell, t) + upPenalty * std::max(0, t.z() - v.cell.z());
+        double overestimatedHeuristic = newDist + overEstimateFactor*heuristic;
+        // double heuristic = newDist + overEstimateFactor*distance2D(v, t);
+        pq.push(std::make_pair(v, overestimatedHeuristic));
+      }
+    }
+  }
+
+  if (bestGoalNode.cell != t) {
+    // No path found
+    return false;
+  }
+
+  // Get the path by walking from t back to s
+  Node walker = bestGoalNode;
+  while (walker.cell != s.cell) {
+    path.push_back(walker.cell);
+    walker = parent[walker];
+  }
+  std::reverse(path.begin(),path.end());
+
+  ROS_INFO("Found path with %d iterations, iterations / distance squared: %f", numIter, numIter / squared(path.size()));
+  
+  return true;
+}
 
 bool GlobalPlanner::getGlobalPath() {
   // true iff a path needs to be published, either a new path or a path back

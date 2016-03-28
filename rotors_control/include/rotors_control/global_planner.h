@@ -96,6 +96,15 @@ inline bool operator> (const Cell& lhs, const Cell& rhs) {return  operator< (rhs
 inline bool operator<=(const Cell& lhs, const Cell& rhs) {return !operator> (lhs,rhs);}
 inline bool operator>=(const Cell& lhs, const Cell& rhs) {return !operator< (lhs,rhs);}
 
+inline Cell operator+(const Cell& lhs, const Cell& rhs) {
+  Cell res(lhs.x() + rhs.x(), lhs.y() + rhs.y(), lhs.z() + rhs.z());
+  return res;
+}
+inline Cell operator-(const Cell& lhs, const Cell& rhs) {
+  Cell res(lhs.x() - rhs.x(), lhs.y() - rhs.y(), lhs.z() - rhs.z());
+  return res;
+}
+
 typedef std::pair<Cell, double> CellDistancePair;
 
 struct HashCell {
@@ -109,13 +118,54 @@ struct HashCell {
     }
 };
 
+
+
+class Node {
+ public:
+  Node()
+      : cell(), parent() {
+  }
+  Node(const Cell cell, const Cell parent)
+      : cell(cell), parent(parent) {
+  }
+  Cell cell;
+  Cell parent;
+};
+inline bool operator==(const Node& lhs, const Node& rhs) {
+  return lhs.cell == rhs.cell && lhs.parent == rhs.parent;}
+inline bool operator< (const Node& lhs, const Node& rhs) {
+  return lhs.cell < rhs.cell || (lhs.cell == rhs.cell && lhs.parent < rhs.parent);}
+inline bool operator!=(const Node& lhs, const Node& rhs) {return !operator==(lhs,rhs);}
+inline bool operator> (const Node& lhs, const Node& rhs) {return  operator< (rhs,lhs);}
+inline bool operator<=(const Node& lhs, const Node& rhs) {return !operator> (lhs,rhs);}
+inline bool operator>=(const Node& lhs, const Node& rhs) {return !operator< (lhs,rhs);}
+
+typedef std::pair<Node, double> NodeDistancePair;
+
+struct HashNode {
+  size_t operator()(const Node &node ) const
+  {
+    HashCell hash;
+    std::string s = "";
+    s += hash(node.cell);
+    s += " ";
+    s += hash(node.parent);
+    return std::hash<std::string>()(s);
+  }
+};  
+
+
 class CompareDist
 {
 public:
-    bool operator()(CellDistancePair n1, CellDistancePair n2) {
+    bool operator()(const CellDistancePair n1, const CellDistancePair n2) {
+        return n1.second > n2.second;
+    }
+      bool operator()(const NodeDistancePair n1, const NodeDistancePair n2) {
         return n1.second > n2.second;
     }
 };
+
 
 class GlobalPlanner {
  public:
@@ -130,7 +180,7 @@ class GlobalPlanner {
   nav_msgs::Path pathMsg;
   std::vector<Cell> pathBack;
   geometry_msgs::Point currPos;
-  Cell goalPos = Cell(0, 0, 2);
+  Cell goalPos = Cell(1, 0, 2);
   double yaw;
   bool goingBack = false;
   double overEstimateFactor = 2.0;
@@ -140,6 +190,7 @@ class GlobalPlanner {
   double maxBailProb = 1.0;
   double inf = std::numeric_limits<double>::infinity();
   int maxIterations = 100000;
+  double smoothFactor = 1.0;
   double riskFactor = 6.0;
   double neighborRiskFlow = 1.0;
   double explorePenalty = 0.1;
@@ -155,12 +206,14 @@ class GlobalPlanner {
   void increaseResolution(double minDist, double minRot, double minTime);
   void truncatePath();
   void getOpenNeighbors(Cell cell, std::vector<CellDistancePair> & neighbors) const;
+  double getTurnSmoothness(const Node u, const Node v);
   double getRisk(Cell & cell);
   geometry_msgs::PoseStamped createPoseMsg(double x, double y, double z, double yaw);
   void pathToWaypoints(std::vector<Cell> & path);
   void goBack();
   bool FindPath(std::vector<Cell> & path);
   bool FindPath(std::vector<Cell> & path, const Cell s, Cell t);
+  bool FindSmoothPath(std::vector<Cell> & path, const Cell s, const Cell t, const Cell parent);
   bool getGlobalPath();
 
 

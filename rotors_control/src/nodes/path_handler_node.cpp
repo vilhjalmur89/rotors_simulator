@@ -17,7 +17,7 @@ PathHandlerNode::PathHandlerNode() {
   current_waypoint_publisher = nh.advertise<geometry_msgs::PoseStamped>("/current_setpoint", 10);
 
   last_msg.header.frame_id="/world";
-  last_msg.pose.position.x = 0.5;
+  last_msg.pose.position.x = 1.5;
   last_msg.pose.position.y = 0.5;
   last_msg.pose.position.z = 2.5;
 
@@ -51,8 +51,8 @@ PathHandlerNode::PathHandlerNode() {
     current_waypoint_publisher.publish(rot_msg);
 
     // 90 deg fix
-    rot_msg.pose.position.x = -(last_msg.pose.position.y);    // TODO: why not last_msg?
-    rot_msg.pose.position.y = (last_msg.pose.position.x);
+    // rot_msg.pose.position.x = -(last_msg.pose.position.y);    // TODO: why not last_msg?
+    // rot_msg.pose.position.y = (last_msg.pose.position.x);
 
     // Publish setpoint to Mavros
     mavros_waypoint_publisher.publish(rot_msg);
@@ -86,8 +86,8 @@ void PathHandlerNode::PositionCallback(
 
   last_pos = pose_msg;
   // 90 deg fix
-  last_pos.pose.position.x = (pose_msg.pose.position.y);
-  last_pos.pose.position.y = -(pose_msg.pose.position.x);
+  // last_pos.pose.position.x = (pose_msg.pose.position.y);
+  // last_pos.pose.position.y = -(pose_msg.pose.position.x);
   // Check if we are close enough to current goal to get the next part of the path
   if (path.size() > 0 && std::abs(last_msg.pose.position.x - last_pos.pose.position.x) < 1 
                       && std::abs(last_msg.pose.position.y - last_pos.pose.position.y) < 1
@@ -99,7 +99,7 @@ void PathHandlerNode::PositionCallback(
     double yawDiff = std::abs(yaw2 - yaw1);
     yawDiff -= std::floor(yawDiff / (2*M_PI)) * (2*M_PI);
     double maxYawDiff = M_PI/4.0;
-    printf("last_msg: %.3f,  last_pos: %.3f,  yawDiff: %.3f \n", yaw1, yaw2, yawDiff);
+    // printf("last_msg: %.3f,  last_pos: %.3f,  yawDiff: %.3f \n", yaw1, yaw2, yawDiff);
     if (yawDiff < maxYawDiff || yawDiff  > 2*M_PI - maxYawDiff){
       // if we are also facing forward, then pop the first point of the path
       last_msg = path[0];
