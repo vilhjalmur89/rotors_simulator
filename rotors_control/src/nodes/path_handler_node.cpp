@@ -21,10 +21,10 @@ PathHandlerNode::PathHandlerNode() {
   last_msg.pose.position.y = 0.5;
   last_msg.pose.position.z = 2.5;
 
-  last_msg.pose.orientation.x = 1.0;
+  last_msg.pose.orientation.x = 0.78;
   last_msg.pose.orientation.y = 0.0;
   last_msg.pose.orientation.z = 0.0;
-  last_msg.pose.orientation.w = 0.0;
+  last_msg.pose.orientation.w = 0.78;
   last_pos = last_msg;
 
   ros::Rate r(10);
@@ -43,16 +43,16 @@ PathHandlerNode::PathHandlerNode() {
 
     // Fix the order of the quaternion coordinates 
     auto rot_msg = last_msg;
-    rot_msg.pose.position.x = last_msg.pose.position.x + vec.getX();
-    rot_msg.pose.position.y = last_msg.pose.position.y + vec.getY();
-    rot_msg.pose.position.z = last_msg.pose.position.z + vec.getZ();
+    // rot_msg.pose.position.x = last_msg.pose.position.x + vec.getX();
+    // rot_msg.pose.position.y = last_msg.pose.position.y + vec.getY();
+    // rot_msg.pose.position.z = last_msg.pose.position.z + vec.getZ();
 
     // Publish setpoint for vizualization
     current_waypoint_publisher.publish(rot_msg);
 
     // 90 deg fix
-    // rot_msg.pose.position.x = -(last_msg.pose.position.y);    // TODO: why not last_msg?
-    // rot_msg.pose.position.y = (last_msg.pose.position.x);
+    rot_msg.pose.position.x = -(last_msg.pose.position.y);    // TODO: why not last_msg?
+    rot_msg.pose.position.y = (last_msg.pose.position.x);
 
     // Publish setpoint to Mavros
     mavros_waypoint_publisher.publish(rot_msg);
@@ -86,20 +86,26 @@ void PathHandlerNode::PositionCallback(
 
   last_pos = pose_msg;
   // 90 deg fix
-  // last_pos.pose.position.x = (pose_msg.pose.position.y);
-  // last_pos.pose.position.y = -(pose_msg.pose.position.x);
+  last_pos.pose.position.x = (pose_msg.pose.position.y);
+  last_pos.pose.position.y = -(pose_msg.pose.position.x);
+
+  // printf("%d \n", path.size());
+  // printf("%f %f %f \n", last_msg.pose.position.x, last_msg.pose.position.y, last_msg.pose.position.z);
+  // printf("%f %f %f \n", last_pos.pose.position.x, last_pos.pose.position.y, last_pos.pose.position.z);
+  // printf("%f %f %f \n", std::abs(last_msg.pose.position.x - last_pos.pose.position.x), std::abs(last_msg.pose.position.y - last_pos.pose.position.y), std::abs(last_msg.pose.position.z - last_pos.pose.position.z));
+  
   // Check if we are close enough to current goal to get the next part of the path
   if (path.size() > 0 && std::abs(last_msg.pose.position.x - last_pos.pose.position.x) < 1 
                       && std::abs(last_msg.pose.position.y - last_pos.pose.position.y) < 1
                       && std::abs(last_msg.pose.position.z - last_pos.pose.position.z) < 1) {
 
-    // double yaw1 = tf::getYaw(last_msg.pose.orientation) + M_PI/4; // 90 deg fix
     double yaw1 = tf::getYaw(last_msg.pose.orientation);
     double yaw2 = tf::getYaw(last_pos.pose.orientation);
     double yawDiff = std::abs(yaw2 - yaw1);
     yawDiff -= std::floor(yawDiff / (2*M_PI)) * (2*M_PI);
     double maxYawDiff = M_PI/4.0;
     // printf("last_msg: %.3f,  last_pos: %.3f,  yawDiff: %.3f \n", yaw1, yaw2, yawDiff);
+    // printf("%f %f \n", yaw1, yaw2);
     if (yawDiff < maxYawDiff || yawDiff  > 2*M_PI - maxYawDiff){
       // if we are also facing forward, then pop the first point of the path
       last_msg = path[0];

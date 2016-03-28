@@ -81,10 +81,12 @@ class Cell {
   Cell(Eigen::Vector3d point)
       : tpl(floor(point[0]), floor(point[1]), floor(point[2]))  {
   }
-
   int x() const {return std::get<0>(tpl);}
   int y() const {return std::get<1>(tpl);}
   int z() const {return std::get<2>(tpl);}
+  double manhattanDist(double _x, double _y, double _z) const {
+    return std::abs(x()+0.5 - _x) + std::abs(y()+0.5 - _y) + std::abs(z()+0.5 - _z);
+  }
 
   std::tuple<int, int, int> tpl;
 };

@@ -245,7 +245,8 @@ void GlobalPlanner::getOpenNeighbors(Cell cell, std::vector<CellDistancePair> & 
 double GlobalPlanner::getTurnSmoothness(const Node u, const Node v) {
   Cell uDiff = u.cell - u.parent;
   Cell vDiff = v.cell - v.parent;
-  return std::abs(uDiff.x() - vDiff.x()) + std::abs(uDiff.y() - vDiff.y());
+  int num45DegTurns = std::abs(uDiff.x() - vDiff.x()) + std::abs(uDiff.y() - vDiff.y());
+  return num45DegTurns * num45DegTurns;     // Squaring makes small turns less costly
 }
 
 double GlobalPlanner::getRisk(Cell & cell){
@@ -295,9 +296,9 @@ void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
   // waypoints.push_back(WaypointWithTime(0, currPos.x, currPos.y, currPos.z, yaw));   
   double lastYaw = yaw;
   pathCells.clear();
-  path.push_back(path[path.size()-1]); // Needed if every other cell of the path is discarded
+  // path.push_back(path[path.size()-1]); // Needed if every other cell of the path is discarded
 
-  for (int i=1; i < path.size()-1; ++i) {
+  for (int i=0; i < path.size()-1; ++i) {
     Cell p = path[i];
     Cell lastP = path[i-1];
     double newYaw = angle(p, path[i+1], lastYaw);
@@ -313,20 +314,23 @@ void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
       pathCells.insert(Cell(lastP.x(), p.y(), p.z()));
     }
   }
-  waypoints.push_back(WaypointWithTime(0, path[path.size()-1].x()+0.5, path[path.size()-1].y()+0.5, 2, lastYaw));
+  Cell lastPoint = path[path.size()-1];   // Last point has the same yaw as the previous point
+  waypoints.push_back(WaypointWithTime(0, lastPoint.x()+0.5, lastPoint.y()+0.5, lastPoint.z()+0.5, lastYaw));
 
   // increaseResolution(2.0, 10, 1000);
   // increaseResolution(0.3, 0.05, 0.1 * kNanoSecondsInSecond);
 }
 
 void GlobalPlanner::goBack() {
-    goingBack = true;
-    std::vector<Cell> path;
-    for (int i=pathBack.size()-1; i >= 0; i -= 2){
-      // Filter every other cell for a smooth path
-      path.push_back(pathBack[i]);
-    }
-    pathToWaypoints(path);
+  ROS_INFO("  GO BACK REJECTED");
+  return;  
+  goingBack = true;
+  std::vector<Cell> path;
+  for (int i=pathBack.size()-1; i >= 0; i -= 2){
+    // Filter every other cell for a smooth path
+    path.push_back(pathBack[i]);
+  }
+  pathToWaypoints(path);
 }
 
 // TODO: Run search backwards to quickly find impossible scenarios
@@ -335,7 +339,7 @@ void GlobalPlanner::goBack() {
 
 bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   Cell s = Cell(currPos);
-  Cell t = Cell(goalPos.x(), goalPos.y(), 2);
+  Cell t = goalPos;
   bool foundPath = FindPath(path, s, t);
   foundPath = FindSmoothPath(path, s, t, s);
   return foundPath;
@@ -432,7 +436,6 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell start,
   while (!pq.empty() && numIter < maxIterations) {
     NodeDistancePair nodeDistU = pq.top(); pq.pop();
     Node u = nodeDistU.first;
-    double d = distance[u];
     if (seenNodes.find(u) != seenNodes.end()) {
       continue;
     }
@@ -450,10 +453,10 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell start,
     for (auto cellDistV : neighbors) {
       Cell vCell = cellDistV.first;
       Node v = Node(vCell, u.cell);
-      double costOfEdge = cellDistV.second;
-      double risk = getRisk(v.cell);
-      double smoothness = getTurnSmoothness(u, v);
-      double newDist = d + costOfEdge + riskFactor * risk + smoothness;
+      double distCost = cellDistV.second;
+      double riskCost = riskFactor * getRisk(v.cell);
+      double smoothCost = smoothFactor * getTurnSmoothness(u, v);
+      double newDist = distance[u] + distCost +  riskCost + smoothCost;
       double oldDist = inf;
       if (distance.find(v) != distance.end()) {
         oldDist = distance[v];
@@ -477,7 +480,7 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell start,
     return false;
   }
 
-  // Get the path by walking from t back to s
+  // Get the path by walking from t back to s (excluding s)
   Node walker = bestGoalNode;
   while (walker.cell != s.cell) {
     path.push_back(walker.cell);

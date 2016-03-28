@@ -66,21 +66,23 @@ void GlobalPlannerNode::PositionCallback(
   auto rot_msg = msg;
   
   // 90 deg fix
-  // rot_msg.pose.position.x = (msg.pose.position.y);
-  // rot_msg.pose.position.y = -(msg.pose.position.x);
+  rot_msg.pose.position.x = (msg.pose.position.y);
+  rot_msg.pose.position.y = -(msg.pose.position.x);
 
   global_planner.setPose(rot_msg.pose.position, tf::getYaw(rot_msg.pose.orientation));    // TODO: call with just pose
 
   // If there is another goal and we are either at current goal or it is blocked, we set a new goal
   // TODO: Fix cell comparison
   if (fileGoals.size() > 0 && 
-        ((Cell(global_planner.currPos).x() == global_planner.goalPos.x() 
-        && Cell(global_planner.currPos).y() == global_planner.goalPos.y()) 
+        (global_planner.goalPos.manhattanDist(global_planner.currPos.x, global_planner.currPos.y, global_planner.currPos.z) < 1.0 
         || global_planner.goalIsBlocked)) {
     
     Cell newGoal = fileGoals[0];
     fileGoals.erase(fileGoals.begin());
     SetNewGoal(newGoal);
+  }
+  else {
+    // printf("%f %d %d \n", global_planner.currPos.z, Cell(global_planner.currPos).z(), global_planner.goalPos.z());
   }
   // else {
   //   Cell x = global_planner.currPos;
@@ -92,7 +94,7 @@ void GlobalPlannerNode::PositionCallback(
 void GlobalPlannerNode::ClickedPointCallback(
     const geometry_msgs::PointStamped& msg) {
 
-  SetNewGoal(Cell(msg.point));
+  SetNewGoal(Cell(msg.point.x, msg.point.y, 2.5));
 }
 
 void GlobalPlannerNode::OctomapFullCallback(
@@ -132,8 +134,8 @@ void GlobalPlannerNode::PublishPath() {
     poseMsg.pose.position.x = wp.position[0];
     poseMsg.pose.position.y = wp.position[1];
     poseMsg.pose.position.z = wp.position[2];
-    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(wp.yaw); 
-    // poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw( (wp.yaw + 3.1415/2.0));  // 90 deg fix
+    // poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(wp.yaw); 
+    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw( (wp.yaw + 3.1415/2.0));  // 90 deg fix
     path.poses.push_back(poseMsg);
   }
   cmd_global_path_pub_.publish(path);
@@ -166,9 +168,10 @@ void GlobalPlannerNode::PublishExploredCells() {
     marker.pose.position.x = it->x() + 0.5;
     marker.pose.position.y = it->y() + 0.5;
     marker.pose.position.z = it->z() + 0.5;
-    marker.color.r = (it->z() / 5.0);
-    marker.color.g = 1.0 - 0.4 * std::abs((it->z() - 2.5));
-    marker.color.b = 1.0 - (it->z() / 5.0);
+    double h = (it->z()-1) / 5.0;
+    marker.color.r = h;
+    marker.color.g = 1.0 - 2.0 * std::abs(h - 0.5);
+    marker.color.b = 1.0 - h;
     marker.color.a = 1.0;
     msg.markers.push_back(marker);
   }
