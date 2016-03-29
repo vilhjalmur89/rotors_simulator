@@ -17,13 +17,13 @@ PathHandlerNode::PathHandlerNode() {
   current_waypoint_publisher = nh.advertise<geometry_msgs::PoseStamped>("/current_setpoint", 10);
 
   last_msg.header.frame_id="/world";
-  last_msg.pose.position.x = 1.5;
+  last_msg.pose.position.x = 0.5;
   last_msg.pose.position.y = 0.5;
-  last_msg.pose.position.z = 2.5;
+  last_msg.pose.position.z = 3.5;
 
-  last_msg.pose.orientation.x = 0.78;
+  last_msg.pose.orientation.x = 0.0;
   last_msg.pose.orientation.y = 0.0;
-  last_msg.pose.orientation.z = 0.0;
+  last_msg.pose.orientation.z = 0.78;
   last_msg.pose.orientation.w = 0.78;
   last_pos = last_msg;
 
@@ -37,22 +37,23 @@ PathHandlerNode::PathHandlerNode() {
     auto y = last_msg.pose.position.y - last_pos.pose.position.y;
     auto z = last_msg.pose.position.z - last_pos.pose.position.z;
     tf::Vector3 vec(x,y,z);
-    double newLen = vec.length() < 0.5? 0.0 : 1.0;
+
+    // If we are closer than 1.0 away, then we should stop at the goal
+    double newLen = vec.length() < 1.0 ? vec.length() : speed;
     vec.normalize();
     vec *= newLen;
 
-    // Fix the order of the quaternion coordinates 
     auto rot_msg = last_msg;
-    // rot_msg.pose.position.x = last_msg.pose.position.x + vec.getX();
-    // rot_msg.pose.position.y = last_msg.pose.position.y + vec.getY();
-    // rot_msg.pose.position.z = last_msg.pose.position.z + vec.getZ();
+    rot_msg.pose.position.x = last_pos.pose.position.x + vec.getX();
+    rot_msg.pose.position.y = last_pos.pose.position.y + vec.getY();
+    rot_msg.pose.position.z = last_msg.pose.position.z + vec.getZ();
 
     // Publish setpoint for vizualization
     current_waypoint_publisher.publish(rot_msg);
 
     // 90 deg fix
-    rot_msg.pose.position.x = -(last_msg.pose.position.y);    // TODO: why not last_msg?
-    rot_msg.pose.position.y = (last_msg.pose.position.x);
+    rot_msg.pose.position.x = -(last_pos.pose.position.y + vec.getY());
+    rot_msg.pose.position.y =  (last_pos.pose.position.x + vec.getX());
 
     // Publish setpoint to Mavros
     mavros_waypoint_publisher.publish(rot_msg);
@@ -61,7 +62,6 @@ PathHandlerNode::PathHandlerNode() {
 
 PathHandlerNode::~PathHandlerNode() { }
 
-
 void PathHandlerNode::ReceiveMessage(const geometry_msgs::PoseStamped& pose_msg) {
 
   // Not in use
@@ -69,6 +69,7 @@ void PathHandlerNode::ReceiveMessage(const geometry_msgs::PoseStamped& pose_msg)
 }
 
 void PathHandlerNode::ReceivePath(const nav_msgs::Path& msg) {
+  speed = 1.0;
   path.clear();
   for (auto p : msg.poses) {
     path.push_back(p);
@@ -99,17 +100,24 @@ void PathHandlerNode::PositionCallback(
                       && std::abs(last_msg.pose.position.y - last_pos.pose.position.y) < 1
                       && std::abs(last_msg.pose.position.z - last_pos.pose.position.z) < 1) {
 
+    // TODO: get yawdiff(yaw1, yaw2)
     double yaw1 = tf::getYaw(last_msg.pose.orientation);
     double yaw2 = tf::getYaw(last_pos.pose.orientation);
     double yawDiff = std::abs(yaw2 - yaw1);
     yawDiff -= std::floor(yawDiff / (2*M_PI)) * (2*M_PI);
     double maxYawDiff = M_PI/4.0;
-    // printf("last_msg: %.3f,  last_pos: %.3f,  yawDiff: %.3f \n", yaw1, yaw2, yawDiff);
-    // printf("%f %f \n", yaw1, yaw2);
     if (yawDiff < maxYawDiff || yawDiff  > 2*M_PI - maxYawDiff){
       // if we are also facing forward, then pop the first point of the path
       last_msg = path[0];
       path.erase(path.begin());
+
+      // If we are keeping the same direction increase speed
+      if (path.size() > 1 && last_msg.pose.orientation.z == path[1].pose.orientation.z) {
+        speed = std::max(2.0, speed+0.1);
+      }
+      else {
+        speed = 1.0;
+      }
     }
 
   }

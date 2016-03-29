@@ -161,10 +161,10 @@ class CompareDist
 {
 public:
     bool operator()(const CellDistancePair n1, const CellDistancePair n2) {
-        return n1.second > n2.second;
+      return n1.second > n2.second;
     }
-      bool operator()(const NodeDistancePair n1, const NodeDistancePair n2) {
-        return n1.second > n2.second;
+    bool operator()(const NodeDistancePair n1, const NodeDistancePair n2) {
+      return n1.second > n2.second;
     }
 };
 
@@ -182,8 +182,8 @@ class GlobalPlanner {
   nav_msgs::Path pathMsg;
   std::vector<Cell> pathBack;
   geometry_msgs::Point currPos;
-  Cell goalPos = Cell(1, 0, 2);
-  double yaw;
+  Cell goalPos = Cell(0, 0, 3);
+  double yaw;         // TODO: change name
   bool goingBack = false;
   double overEstimateFactor = 2.0;
   int minHeight = 1;
@@ -191,7 +191,7 @@ class GlobalPlanner {
   double maxPathProb = -1.0;
   double maxBailProb = 1.0;
   double inf = std::numeric_limits<double>::infinity();
-  int maxIterations = 100000;
+  int maxIterations = 10000;
   double smoothFactor = 1.0;
   double riskFactor = 6.0;
   double neighborRiskFlow = 1.0;
@@ -213,6 +213,7 @@ class GlobalPlanner {
   geometry_msgs::PoseStamped createPoseMsg(double x, double y, double z, double yaw);
   void pathToWaypoints(std::vector<Cell> & path);
   void goBack();
+  Cell getParentFromYaw(const Cell c);
   bool FindPath(std::vector<Cell> & path);
   bool FindPath(std::vector<Cell> & path, const Cell s, Cell t);
   bool FindSmoothPath(std::vector<Cell> & path, const Cell s, const Cell t, const Cell parent);

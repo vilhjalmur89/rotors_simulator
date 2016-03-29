@@ -64,31 +64,23 @@ void GlobalPlannerNode::PositionCallback(
     const geometry_msgs::PoseStamped& msg) {
 
   auto rot_msg = msg;
-  
+  double yaw = tf::getYaw(rot_msg.pose.orientation);
+
   // 90 deg fix
   rot_msg.pose.position.x = (msg.pose.position.y);
   rot_msg.pose.position.y = -(msg.pose.position.x);
+  yaw -= 3.1415/2;
 
-  global_planner.setPose(rot_msg.pose.position, tf::getYaw(rot_msg.pose.orientation));    // TODO: call with just pose
+  global_planner.setPose(rot_msg.pose.position, yaw);    // TODO: call with just pose
 
+  double distToGoal = global_planner.goalPos.manhattanDist(global_planner.currPos.x, global_planner.currPos.y, global_planner.currPos.z);
   // If there is another goal and we are either at current goal or it is blocked, we set a new goal
-  // TODO: Fix cell comparison
-  if (fileGoals.size() > 0 && 
-        (global_planner.goalPos.manhattanDist(global_planner.currPos.x, global_planner.currPos.y, global_planner.currPos.z) < 1.0 
-        || global_planner.goalIsBlocked)) {
+  if (fileGoals.size() > 0 && (distToGoal < 1.5 || global_planner.goalIsBlocked)) {
     
     Cell newGoal = fileGoals[0];
     fileGoals.erase(fileGoals.begin());
     SetNewGoal(newGoal);
   }
-  else {
-    // printf("%f %d %d \n", global_planner.currPos.z, Cell(global_planner.currPos).z(), global_planner.goalPos.z());
-  }
-  // else {
-  //   Cell x = global_planner.currPos;
-  //   Cell y = global_planner.goalPos;
-  //   printf("     %d, (%d, %d, %d), (%d, %d, %d)", (int)fileGoals.size(), x.x(), x.y(), x.z(), y.x(), y.y(), y.z());
-  // }
 }
 
 void GlobalPlannerNode::ClickedPointCallback(
