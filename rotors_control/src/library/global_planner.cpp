@@ -77,12 +77,15 @@ double diagDistance2D(const Cell & a, const Cell & b) {
   return (dx + dy) + (diagCost - 2) * std::min(dx, dy);
 }
 
+
+
+
 GlobalPlanner::GlobalPlanner()  {}
 GlobalPlanner::~GlobalPlanner() {}
 
-void GlobalPlanner::setPose(const geometry_msgs::Point newPos, double newYaw) {
+void GlobalPlanner::setPose(const geometry_msgs::Point & newPos, double newYaw) {
   currPos = newPos;
-  yaw = newYaw;
+  currYaw = newYaw;
   Cell currCell = Cell(currPos);
   if (!goingBack && (pathBack.size() == 0 || currCell != pathBack[pathBack.size()-1])) {
     // Keep track of where we have been, add current position to pathBack if it is different from last one
@@ -90,11 +93,10 @@ void GlobalPlanner::setPose(const geometry_msgs::Point newPos, double newYaw) {
   }
 }
 
-void GlobalPlanner::setGoal(const Cell goal) {
+void GlobalPlanner::setGoal(const Cell & goal) {
   goalPos = goal;
   goingBack = false;
   goalIsBlocked = false;
-  printf("Set goal: %d, %d, %d \n", goal.x(), goal.y(), goal.z());
 }
 
 bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
@@ -179,7 +181,7 @@ void GlobalPlanner::truncatePath() {
   waypoints.resize(0);
 }
 
-void GlobalPlanner::getOpenNeighbors(Cell cell, std::vector<CellDistancePair> & neighbors) const {
+void GlobalPlanner::getOpenNeighbors(const Cell & cell, std::vector<CellDistancePair> & neighbors) const {
   // Fill neighbors with the 8 horizontal and 2 vertical non-occupied neigbors
   // It's long because it uses the minimum number of 'if's 
   // TODO: Try using weights instead of 'if's
@@ -235,28 +237,28 @@ void GlobalPlanner::getOpenNeighbors(Cell cell, std::vector<CellDistancePair> & 
 
   // Vertical neighbors
   if (z < maxHeight && upOpen) {
-    neighbors.push_back(std::make_pair(up, 1.0 + upPenalty));
+    neighbors.push_back(std::make_pair(up, upCost));
   }
   if (z > minHeight && downOpen) {
-    neighbors.push_back(std::make_pair(down, 1.0));
+    neighbors.push_back(std::make_pair(down, downCost));
   }
 }
 
-double GlobalPlanner::getTurnSmoothness(const Node u, const Node v) {
-  Cell uDiff = u.cell - u.parent;
-  Cell vDiff = v.cell - v.parent;
 
-  int num45DegTurns;
-  if (uDiff.x() == -vDiff.x() && uDiff.y() == -vDiff.y()){
-    num45DegTurns = 4;    // 180 degrees
-  }
-  else {
-    num45DegTurns = std::abs(uDiff.x() - vDiff.x()) + std::abs(uDiff.y() - vDiff.y());
-  }
-  return num45DegTurns * num45DegTurns;     // Squaring makes small turns less costly
+
+// Cost function
+double GlobalPlanner::getEdgeDist(const Cell & u, const Cell & v) {
+  int xDiff = std::abs(v.x() - u.x());
+  int yDiff = std::abs(v.y() - u.y());
+  int zDiff = v.z() - u.z();
+  int diff = xDiff + yDiff;
+  if (diff == 1) return 1.0;
+  if (diff == 2) return 1.41;
+  if (zDiff == 1) return upCost;
+  return downCost;
 }
 
-double GlobalPlanner::getRisk(Cell & cell){
+double GlobalPlanner::getRisk(const Cell & cell){
   // Computes the risk from the cell, its neighbors and the prior
 
   double risk = explorePenalty;
@@ -282,6 +284,61 @@ double GlobalPlanner::getRisk(Cell & cell){
   return risk * prior;
 }
 
+double GlobalPlanner::getTurnSmoothness(const Node & u, const Node & v) {
+  Cell uDiff = u.cell - u.parent;
+  Cell vDiff = v.cell - v.parent;
+
+  int num45DegTurns;
+  if (uDiff.x() - vDiff.x() == 0 && uDiff.y() - vDiff.y() == 0) {
+    num45DegTurns = 0;
+  }
+  else if (uDiff.x() == -vDiff.x() && uDiff.y() == -vDiff.y()){
+    num45DegTurns = 4;    // 180 degrees, the formula below doesn't work for this case 
+  }
+  else {
+    num45DegTurns = std::abs(uDiff.x() - vDiff.x()) + std::abs(uDiff.y() - vDiff.y());
+  }
+  return num45DegTurns * num45DegTurns;     // Squaring makes small turns less costly
+}
+
+double GlobalPlanner::getEdgeCost(const Node & u, const Node & v) {
+  double distCost = getEdgeDist(u.cell, v.cell);
+  double riskCost = riskFactor * getRisk(v.cell);
+  double smoothCost = smoothFactor * getTurnSmoothness(u, v);
+  return distCost + riskCost + smoothCost;
+}
+
+
+// Heuristic Function
+double GlobalPlanner::riskHeuristic(const Cell & u, const Cell & goal) {
+  // TODO: Heuristic based on the risk of flying at current altitude
+}
+
+double GlobalPlanner::smoothnessHeuristic(const Node & u, const Cell & goal) {
+  if (u.cell.x() == goal.x() && u.cell.y() == goal.y()) {
+    return 0.0;
+  }
+  double angU = (u.cell - u.parent).angle();
+  double angGoal = (goal - u.cell).angle(); 
+  double angDiff = std::fabs(angleToRange(angGoal - angU));  // positive angle difference
+  double num45DegTurns = std::ceil(angDiff / (M_PI/4));    // Minimum number of 45-turns to goal
+  return smoothFactor * num45DegTurns;
+}
+
+double GlobalPlanner::altitudeHeuristic(const Cell & u, const Cell & goal) {
+  // Minimum cost for changing altitude
+  double diff = goal.z() - u.z();
+  // Either multiply by upCost or downCost, depending on if we are belove or above the goal
+  double cost = diff > 0 ? upCost * std::abs(diff) : downCost * std::abs(diff);
+  return cost;
+}
+
+double GlobalPlanner::getHeuristic(const Node & u, const Cell & goal) {
+  double heuristic = diagDistance2D(u.cell, goal);     // Lower bound for distance on a grid 
+  heuristic += altitudeHeuristic(u.cell, goal);        // Lower bound cost due to altitude change
+  heuristic += smoothnessHeuristic(u, goal);           // Lower bound cost due to turning  
+  return heuristic;
+}
 
  // TODO: Use this 
  geometry_msgs::PoseStamped GlobalPlanner::createPoseMsg(double x, double y, double z, double yaw) {
@@ -301,7 +358,7 @@ void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
   waypoints.resize(0);
   // Use actual position instead of the center of the cell
   // waypoints.push_back(WaypointWithTime(0, currPos.x, currPos.y, currPos.z, yaw));   
-  double lastYaw = yaw;
+  double lastYaw = currYaw;
   pathCells.clear();
   // path.push_back(path[path.size()-1]); // Needed if every other cell of the path is discarded
 
@@ -340,29 +397,55 @@ void GlobalPlanner::goBack() {
   pathToWaypoints(path);
 }
 
+void GlobalPlanner::printPathStats(const std::vector<Cell> & path, 
+                                   const Cell startParent, const Cell start,
+                                   const Cell goal, double totalCost, 
+                                   std::map<Node, double> & distance) {
+
+  if (path.size() == 0) {
+    printf("PATH IS EMPTY");
+    return;
+  }
+
+  printf("\n\n\nPath analysis: \n");
+  double currCost = 0.0;
+  Node lastNode = Node(start, startParent);
+
+  printf("Cell: \t\tcurrCo \theuri \tgoalDi \tOvEst \tEdgeD \tEdgeA \tEdgeR \tEdgeS \n");
+  printf("%s: \t %3.2f\t %3.2f \t%3.2f \t%3.2f \t%3.2f \n", start.asString().c_str(), distance[lastNode], currCost, getHeuristic(lastNode, goal), totalCost, totalCost / getHeuristic(lastNode, goal));
+
+  for(int i=0; i < path.size(); ++i) {
+    Node currNode = Node(path[i], lastNode.cell);
+    currCost += getEdgeCost(lastNode, currNode);
+    double heuristic = getHeuristic(currNode, goal);
+    double actualCost = totalCost - currCost;
+    double heuristicFactor = actualCost / heuristic;
+    printf("%s: \t%3.2f \t%3.2f \t%3.2f \t%3.2f \n", 
+            currNode.cell.asString().c_str(), distance[currNode], 
+            currCost, heuristic, actualCost, heuristicFactor);
+    lastNode = currNode;
+  }
+  printf("\n\n");
+}
+
+
 // TODO: Run search backwards to quickly find impossible scenarios
 // bool GlobalPlanner::isGoalBlocked() { }
-
-Cell GlobalPlanner::getParentFromYaw(const Cell c) {
-  // Returns the cell behind c, should haw yaw as a parameter
-  int x = 2*std::cos(yaw);
-  int y = 2*std::sin(yaw);
-  printf("parent: %d %d \n", x, y);
-  return c - Cell(x,y,0);
-}
 
 bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   Cell s = Cell(currPos);
   Cell t = goalPos;
-  Cell parent = getParentFromYaw(s);
-  bool foundPath = FindPath(path, s, t);
+  Cell parent = s.getNeighborFromYaw(currYaw + M_PI); // The cell behind the start cell
+  ROS_INFO("Planning a path from %s to %s", s.asString().c_str(), t.asString().c_str());
+  ROS_INFO("Planning a path from (%d,%d,%d) to (%d,%d,%d)", s.x(), s.y(), s.z(), t.x(), t.y(), t.z());
+  bool foundPath;
+  // foundPath = FindPath(path, s, t);
   foundPath = FindSmoothPath(path, s, t, parent);
   return foundPath;
 }
 
-bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell s, Cell t) {
+bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell & s, Cell t) {
   // A* to find a path from currPos to goalPos, true iff it found a path
-  ROS_INFO("Planning a path from (%d, %d) to (%d, %d)", s.x(), s.y(), t.x(), t.y());
 
   // Initialize containers
   seen.clear();
@@ -405,7 +488,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell s, Cell t) {
         // TODO: try Dynamic Weighting in stead of a constant overEstimateFactor
         // TODO: path smoothness heuristic
         double heuristic = diagDistance2D(v, t);                // Lower bound for distance on a grid 
-        heuristic += upPenalty * std::max(0, t.z() - v.z());    // Minumum cost for increasing altitude
+        heuristic += upCost * std::max(0, t.z() - v.z());    // Minumum cost for increasing altitude
         heuristic += std::max(0, v.z() - t.z());                // Minumum cost for decreasing altitude
         double overestimatedHeuristic = newDist + overEstimateFactor * heuristic;
         pq.push(std::make_pair(v, overestimatedHeuristic));
@@ -426,16 +509,15 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell s, Cell t) {
   }
   std::reverse(path.begin(),path.end());
 
-  ROS_INFO("Found path with %d iterations, iterations / distance squared: %f", numIter, numIter / squared(path.size()));
+  ROS_INFO("Found path with %d iterations, itDistSquared: %.3f", numIter, numIter / squared(path.size()));
   
   return true;
 }  
 
-bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell start, 
-                                   const Cell t, const Cell startParent) {
+bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start, 
+                                   const Cell & t, const Cell & startParent) {
 
   // A* to find a path from currPos to goalPos, true iff it found a path
-  ROS_INFO("Planning a path from (%d, %d) to (%d, %d)", start.x(), start.y(), t.x(), t.y());
 
   // Initialize containers
   Node s = Node(start, startParent);
@@ -460,7 +542,6 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell start,
     numIter++;
     if (u.cell == t) {
       bestGoalNode = u;
-      ROS_INFO("FOUND PATH");
       break;  // Found a path
     }
 
@@ -472,7 +553,7 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell start,
       double distCost = cellDistV.second;
       double riskCost = riskFactor * getRisk(v.cell);
       double smoothCost = smoothFactor * getTurnSmoothness(u, v);
-      double newDist = distance[u] + distCost +  riskCost + smoothCost;
+      double newDist = distance[u] + distCost +  riskCost + smoothCost;     // Use getEdgeCost
       double oldDist = inf;
       if (distance.find(v) != distance.end()) {
         oldDist = distance[v];
@@ -482,10 +563,7 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell start,
         parent[v] = u;
         distance[v] = newDist;
         // TODO: try Dynamic Weighting in stead of a constant overEstimateFactor
-        // TODO: path smoothness heuristic
-        double heuristic = diagDistance2D(v.cell, t);                // Lower bound for distance on a grid 
-        heuristic += upPenalty * std::max(0, t.z() - v.cell.z());    // Minumum cost for increasing altitude
-        heuristic += std::max(0, v.cell.z() - t.z());                // Minumum cost for decreasing altitude
+        double heuristic = getHeuristic(v, t);
         double overestimatedHeuristic = newDist + overEstimateFactor * heuristic;
         // double heuristic = newDist + overEstimateFactor*distance2D(v, t);
         pq.push(std::make_pair(v, overestimatedHeuristic));
@@ -494,8 +572,7 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell start,
   }
 
   if (bestGoalNode.cell != t) {
-    // No path found
-    return false;
+    return false;   // No path found
   }
 
   // Get the path by walking from t back to s (excluding s)
@@ -505,8 +582,9 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell start,
     walker = parent[walker];
   }
   std::reverse(path.begin(),path.end());
+  printPathStats(path, startParent, start, t, distance[bestGoalNode], distance);
 
-  ROS_INFO("Found path with %d iterations, iterations / distance squared: %f", numIter, numIter / squared(path.size()));
+  ROS_INFO("Found path with %d iterations, itDistSquared: %.3f", numIter, numIter / squared(path.size()));
   
   return true;
 }

@@ -35,6 +35,7 @@
 #include <tuple>
 #include <string>
 #include <limits>           // numeric_limits
+#include <string>
 
 #include <octomap_msgs/conversions.h>
 #include <octomap_msgs/Octomap.h>
@@ -81,11 +82,31 @@ class Cell {
   Cell(Eigen::Vector3d point)
       : tpl(floor(point[0]), floor(point[1]), floor(point[2]))  {
   }
+
   int x() const {return std::get<0>(tpl);}
   int y() const {return std::get<1>(tpl);}
   int z() const {return std::get<2>(tpl);}
+
   double manhattanDist(double _x, double _y, double _z) const {
     return std::abs(x()+0.5 - _x) + std::abs(y()+0.5 - _y) + std::abs(z()+0.5 - _z);
+  }
+
+  double angle() {
+    return atan2(y(), x());
+  }
+
+  Cell getNeighborFromYaw(double yaw) {
+    // Returns the neighboring cell in the yaw direction
+    // E.g. if yaw == PI/4, then it returns Cell(x+1, y+1, z)
+    int xDiff = 2*std::cos(yaw);
+    int yDiff = 2*std::sin(yaw);
+    ROS_INFO("parent: %d %d \n", xDiff, yDiff);
+    return Cell(x() + xDiff, y() + yDiff, z());
+  }
+
+  std::string asString() const {  
+    std::string s = "(" + std::to_string(x()) + "," + std::to_string(y()) + "," + std::to_string(z()) + ")";
+    return s;
   }
 
   std::tuple<int, int, int> tpl;
@@ -182,8 +203,8 @@ class GlobalPlanner {
   nav_msgs::Path pathMsg;
   std::vector<Cell> pathBack;
   geometry_msgs::Point currPos;
+  double currYaw;
   Cell goalPos = Cell(0, 0, 3);
-  double yaw;         // TODO: change name
   bool goingBack = false;
   double overEstimateFactor = 2.0;
   int minHeight = 1;
@@ -196,27 +217,39 @@ class GlobalPlanner {
   double riskFactor = 6.0;
   double neighborRiskFlow = 1.0;
   double explorePenalty = 0.1;
-  double upPenalty = 5;
+  double upCost = 3.0;
+  double downCost = 1.0;
   bool goalIsBlocked = false;
+  int numOctomapMessages = 0;
 
   GlobalPlanner();
   ~GlobalPlanner();
 
-  void setPose(geometry_msgs::Point newPos, double newYaw);
-  void setGoal(const Cell goal);
-  bool updateFullOctomap(const octomap_msgs::Octomap& msg);
+  void setPose(const geometry_msgs::Point & newPos, double newYaw);
+  void setGoal(const Cell & goal);
+  bool updateFullOctomap(const octomap_msgs::Octomap & msg);
   void increaseResolution(double minDist, double minRot, double minTime);
   void truncatePath();
-  void getOpenNeighbors(Cell cell, std::vector<CellDistancePair> & neighbors) const;
-  double getTurnSmoothness(const Node u, const Node v);
-  double getRisk(Cell & cell);
+  void getOpenNeighbors(const Cell & cell, std::vector<CellDistancePair> & neighbors) const;
+  void printPathStats(const std::vector<Cell> & path, const Cell startParent, const Cell start,
+                                   const Cell goal, double totalDistance, std::map<Node, double> & distance);
+
+  double getEdgeDist(const Cell & u, const Cell & v);
+  double getRisk(const Cell & cell);
+  double getTurnSmoothness(const Node & u, const Node & v);
+  double getEdgeCost(const Node & u, const Node & v);
+
+  double riskHeuristic(const Cell & u, const Cell & goal);
+  double smoothnessHeuristic(const Node & u, const Cell & goal);
+  double altitudeHeuristic(const Cell & u, const Cell & goal);
+  double getHeuristic(const Node & u, const Cell & goal);
+  
   geometry_msgs::PoseStamped createPoseMsg(double x, double y, double z, double yaw);
   void pathToWaypoints(std::vector<Cell> & path);
   void goBack();
-  Cell getParentFromYaw(const Cell c);
   bool FindPath(std::vector<Cell> & path);
-  bool FindPath(std::vector<Cell> & path, const Cell s, Cell t);
-  bool FindSmoothPath(std::vector<Cell> & path, const Cell s, const Cell t, const Cell parent);
+  bool FindPath(std::vector<Cell> & path, const Cell & s, Cell t);
+  bool FindSmoothPath(std::vector<Cell> & path, const Cell & s, const Cell & t, const Cell & parent);
   bool getGlobalPath();
 
 

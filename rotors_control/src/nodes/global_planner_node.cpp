@@ -56,6 +56,7 @@ GlobalPlannerNode::GlobalPlannerNode() {
 GlobalPlannerNode::~GlobalPlannerNode() { }
 
 void GlobalPlannerNode::SetNewGoal(Cell goal) {
+  ROS_INFO("========== Set goal : %s ==========", goal.asString().c_str());
   global_planner.setGoal(goal);
   PlanPath();
 }
@@ -69,16 +70,16 @@ void GlobalPlannerNode::PositionCallback(
   // 90 deg fix
   rot_msg.pose.position.x = (msg.pose.position.y);
   rot_msg.pose.position.y = -(msg.pose.position.x);
-  yaw -= 3.1415/2;
+  yaw -= M_PI/2;
 
   global_planner.setPose(rot_msg.pose.position, yaw);    // TODO: call with just pose
 
   double distToGoal = global_planner.goalPos.manhattanDist(global_planner.currPos.x, global_planner.currPos.y, global_planner.currPos.z);
-  // If there is another goal and we are either at current goal or it is blocked, we set a new goal
   if (fileGoals.size() > 0 && (distToGoal < 1.5 || global_planner.goalIsBlocked)) {
-    
+    // If there is another goal and we are either at current goal or it is blocked, we set a new goal
     Cell newGoal = fileGoals[0];
     fileGoals.erase(fileGoals.begin());
+    ROS_INFO("Reached current goal, %d goals left\n\n", (int) fileGoals.size());
     SetNewGoal(newGoal);
   }
 }
@@ -92,15 +93,19 @@ void GlobalPlannerNode::ClickedPointCallback(
 void GlobalPlannerNode::OctomapFullCallback(
     const octomap_msgs::Octomap& msg) {
 
+  if (global_planner.numOctomapMessages++ % 10 > 0) {
+    return;     // We get too many of those messages. Only process 1/10 of them
+  }
+
   if (!global_planner.updateFullOctomap(msg)) {
     // Part of the current path is blocked
-    ROS_INFO("  Path is bad, planning a new path");
+    ROS_INFO("  Path is bad, planning a new path \n");
     global_planner.truncatePath();             // Cut off bad part of path
     // TODO: Decide whether to truncate path or not
-    Cell tmp = global_planner.goalPos;
-    global_planner.goalPos = Cell(global_planner.currPos);
-    PublishPath();      
-    global_planner.goalPos = tmp;             // Publish cut-off path
+    // Cell tmp = global_planner.goalPos;
+    // global_planner.goalPos = Cell(global_planner.currPos);
+    // PublishPath();      
+    // global_planner.goalPos = tmp;             // Publish cut-off path
     PlanPath();                               // Plan a whole new path
   }
 }
@@ -131,7 +136,6 @@ void GlobalPlannerNode::PublishPath() {
     path.poses.push_back(poseMsg);
   }
   cmd_global_path_pub_.publish(path);
-  printf("\n    Published Full Path \n");
 }
 
 void GlobalPlannerNode::PublishExploredCells() {
@@ -160,11 +164,15 @@ void GlobalPlannerNode::PublishExploredCells() {
     marker.pose.position.x = it->x() + 0.5;
     marker.pose.position.y = it->y() + 0.5;
     marker.pose.position.z = it->z() + 0.5;
-    double h = (it->z()-1) / 5.0;
+
+    // Just a hack to get the (almost) color spectrum depending on height
+    // h=1 -> blue    h=3 -> green  h=5 -> red
+    double h = (it->z()-1.0) / 5.0;
     marker.color.r = h;
     marker.color.g = 1.0 - 2.0 * std::abs(h - 0.5);
     marker.color.b = 1.0 - h;
     marker.color.a = 1.0;
+
     msg.markers.push_back(marker);
   }
   cmd_explored_cells_pub_.publish(msg);
@@ -180,7 +188,7 @@ int main(int argc, char** argv) {
   ros::removeROSArgs(argc, argv, args);
 
   if (args.size() > 1) {
-    printf("    ARGS: %s", args.at(1).c_str());
+    ROS_INFO("    ARGS: %s", args.at(1).c_str());
     std::ifstream wp_file(args.at(1).c_str());
     if (wp_file.is_open()) {
       double x, y, z;
@@ -199,7 +207,6 @@ int main(int argc, char** argv) {
   else {
     ROS_INFO("  No goal file given.");
   }
-
 
   ros::spin();
 

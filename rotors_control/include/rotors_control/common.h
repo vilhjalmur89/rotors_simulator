@@ -98,6 +98,19 @@ void skewMatrixFromVector(Eigen::Vector3d& vector, Eigen::Matrix3d* skew_matrix)
 void vectorFromSkewMatrix(Eigen::Matrix3d& skew_matrix, Eigen::Vector3d* vector) {
   *vector << skew_matrix(2, 1), skew_matrix(0,2), skew_matrix(1, 0);
 }
+
+
+
+// GLOBAL PLANNER
+double angleToRange(double angle) {
+  // returns the angle in the range [-pi, pi]
+  angle += M_PI;
+  angle -= (2*M_PI) * floor( angle / (2*M_PI) );
+  angle -= M_PI;
+}
+
+
+
 }
 
 #endif /* INCLUDE_ROTORS_CONTROL_COMMON_H_ */

@@ -46,7 +46,7 @@ PathHandlerNode::PathHandlerNode() {
     auto rot_msg = last_msg;
     rot_msg.pose.position.x = last_pos.pose.position.x + vec.getX();
     rot_msg.pose.position.y = last_pos.pose.position.y + vec.getY();
-    rot_msg.pose.position.z = last_msg.pose.position.z + vec.getZ();
+    rot_msg.pose.position.z = last_pos.pose.position.z + vec.getZ();
 
     // Publish setpoint for vizualization
     current_waypoint_publisher.publish(rot_msg);
@@ -78,7 +78,7 @@ void PathHandlerNode::ReceivePath(const nav_msgs::Path& msg) {
     last_msg = path[0];
   }
   else {
-    printf("  Received empty path\n");
+    ROS_INFO("  Received empty path\n");
   }
 }
 
@@ -105,7 +105,7 @@ void PathHandlerNode::PositionCallback(
     double yaw2 = tf::getYaw(last_pos.pose.orientation);
     double yawDiff = std::abs(yaw2 - yaw1);
     yawDiff -= std::floor(yawDiff / (2*M_PI)) * (2*M_PI);
-    double maxYawDiff = M_PI/4.0;
+    double maxYawDiff = M_PI/8.0;
     if (yawDiff < maxYawDiff || yawDiff  > 2*M_PI - maxYawDiff){
       // if we are also facing forward, then pop the first point of the path
       last_msg = path[0];
