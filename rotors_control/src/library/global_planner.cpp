@@ -411,18 +411,29 @@ void GlobalPlanner::printPathStats(const std::vector<Cell> & path,
   double currCost = 0.0;
   Node lastNode = Node(start, startParent);
 
-  printf("Cell: \t\tcurrCo \theuri \tgoalDi \tOvEst \tEdgeD \tEdgeA \tEdgeR \tEdgeS \n");
-  printf("%s: \t %3.2f\t %3.2f \t%3.2f \t%3.2f \t%3.2f \n", start.asString().c_str(), distance[lastNode], currCost, getHeuristic(lastNode, goal), totalCost, totalCost / getHeuristic(lastNode, goal));
-
+  printf("Cell:\t \tcurrCo \theuri \ttoGoal \tOvEst \t|| \tEdgeC  \tEdgeD \tEdgeR  \tEdgeS \t||\theuris \tDist  \tAlti   \tSmooth \n");
+  printf("%s: \t%3.2f\t %3.2f\t %3.2f\t %3.2f \t|| \n", start.asString().c_str(), 
+          currCost, getHeuristic(lastNode, goal), totalCost, totalCost / getHeuristic(lastNode, goal));
+  
   for(int i=0; i < path.size(); ++i) {
     Node currNode = Node(path[i], lastNode.cell);
     currCost += getEdgeCost(lastNode, currNode);
     double heuristic = getHeuristic(currNode, goal);
     double actualCost = totalCost - currCost;
-    double heuristicFactor = actualCost / heuristic;
-    printf("%s: \t%3.2f \t%3.2f \t%3.2f \t%3.2f \n", 
-            currNode.cell.asString().c_str(), distance[currNode], 
-            currCost, heuristic, actualCost, heuristicFactor);
+    double ovEst = actualCost / heuristic;
+
+    double edgeC = getEdgeCost(lastNode, currNode);
+    double edgeD = getEdgeDist(currNode.parent, currNode.cell);
+    double edgeR = riskFactor * getRisk(currNode.cell);
+    double edgeS = smoothFactor * getTurnSmoothness(lastNode, currNode);
+
+    double distHeuristic = diagDistance2D(currNode.cell, goal);     // Lower bound for distance on a grid 
+    double altHeuristic = altitudeHeuristic(currNode.cell, goal);        // Lower bound cost due to altitude change
+    double smoothHeuristic = smoothnessHeuristic(currNode, goal);  
+    printf("%s: \t%3.2f \t%3.2f \t%3.2f \t%3.2f", currNode.cell.asString().c_str(), 
+            currCost, heuristic, actualCost, ovEst);
+    printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f", edgeC, edgeD, edgeR, edgeS);
+    printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f \n", heuristic, distHeuristic, altHeuristic, smoothHeuristic);
     lastNode = currNode;
   }
   printf("\n\n");
