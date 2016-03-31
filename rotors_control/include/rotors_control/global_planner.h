@@ -193,12 +193,12 @@ public:
 class GlobalPlanner {
  public:
   // octomap::OcTree* octree;
-  std::vector<double> heightPrior { 1.0, 1.0, 0.8, 0.8, 0.6, 0.5, 0.4,
-                                    0.3, 0.2, 0.1, 0.1, 0.1, 0.1};
+  std::vector<double> heightPrior { 1.0, 1.0, 0.8, 0.6, 0.5, 0.4, 0.3,
+                                    0.2, 0.2, 0.1, 0.1, 0.1, 0.1};
   std::set<Cell> occupied;
   std::unordered_map<Cell, double, HashCell> occProb;
   std::set<Cell> seen;        // Set of cells that were explored in last search
-  std::set<Cell> pathCells;   // Set of cells that are on current path
+  std::set<Cell> pathCells;   // Set of cells that are on current path, and cannot be blocked
   std::vector<WaypointWithTime> waypoints;    // TODO: remove and use pathMsg
   nav_msgs::Path pathMsg;
   std::vector<Cell> pathBack;
@@ -214,9 +214,9 @@ class GlobalPlanner {
   double inf = std::numeric_limits<double>::infinity();
   int maxIterations = 10000;
   double smoothFactor = 1.0;
-  double riskFactor = 6.0;
+  double riskFactor = 10.0;
   double neighborRiskFlow = 1.0;
-  double explorePenalty = 0.1;
+  double explorePenalty = 0.015;
   double upCost = 3.0;
   double downCost = 1.0;
   bool goalIsBlocked = false;

@@ -278,6 +278,7 @@ double GlobalPlanner::getRisk(const Cell & cell){
     if (occProb.find(cell) != occProb.end()) {
       risk += neighborRiskFlow * octomap::probability(occProb[cell]);
     }
+    else risk += neighborRiskFlow * explorePenalty;
   }
 
   double prior = heightPrior[floor(cell.z())];
@@ -289,8 +290,11 @@ double GlobalPlanner::getTurnSmoothness(const Node & u, const Node & v) {
   Cell vDiff = v.cell - v.parent;
 
   int num45DegTurns;
-  if (uDiff.x() - vDiff.x() == 0 && uDiff.y() - vDiff.y() == 0) {
-    num45DegTurns = 0;
+  if ( (uDiff.x() == 0 && uDiff.y() == 0) || (vDiff.x() == 0 && vDiff.y() == 0)) {
+    num45DegTurns = 1;    // Starting or ending vertical motion
+  }
+  else if (uDiff.x() - vDiff.x() == 0 && uDiff.y() - vDiff.y() == 0) {
+    num45DegTurns = 0;    // Maintaining vertical motion is smooth
   }
   else if (uDiff.x() == -vDiff.x() && uDiff.y() == -vDiff.y()){
     num45DegTurns = 4;    // 180 degrees, the formula below doesn't work for this case 
@@ -312,11 +316,16 @@ double GlobalPlanner::getEdgeCost(const Node & u, const Node & v) {
 // Heuristic Function
 double GlobalPlanner::riskHeuristic(const Cell & u, const Cell & goal) {
   // TODO: Heuristic based on the risk of flying at current altitude
+  double unexploredRisk = (1.0 + 6.0 * neighborRiskFlow) * explorePenalty * riskFactor;  
+  return diagDistance2D(u, goal) * unexploredRisk * heightPrior[u.z()];
 }
 
 double GlobalPlanner::smoothnessHeuristic(const Node & u, const Cell & goal) {
-  if (u.cell.x() == goal.x() && u.cell.y() == goal.y()) {
-    return 0.0;
+  if (u.cell.x() == goal.x() && u.cell.y() == goal.y()) { 
+    return 0.0;     // Above or below the goal
+  }
+  if (u.cell.x() == u.parent.x() && u.cell.y() == u.parent.y()) { 
+    return 0.0;     // Vertical motion
   }
   double angU = (u.cell - u.parent).angle();
   double angGoal = (goal - u.cell).angle(); 
@@ -335,7 +344,8 @@ double GlobalPlanner::altitudeHeuristic(const Cell & u, const Cell & goal) {
 }
 
 double GlobalPlanner::getHeuristic(const Node & u, const Cell & goal) {
-  double heuristic = diagDistance2D(u.cell, goal);     // Lower bound for distance on a grid 
+  double heuristic = diagDistance2D(u.cell, goal);     // Lower bound for distance on a grid
+  heuristic += riskHeuristic(u.cell, goal);            // Risk through a straight-line path of unexplored space
   heuristic += altitudeHeuristic(u.cell, goal);        // Lower bound cost due to altitude change
   heuristic += smoothnessHeuristic(u, goal);           // Lower bound cost due to turning  
   return heuristic;
@@ -428,19 +438,21 @@ void GlobalPlanner::printPathStats(const std::vector<Cell> & path,
     double edgeR = riskFactor * getRisk(currNode.cell);
     double edgeS = smoothFactor * getTurnSmoothness(lastNode, currNode);
 
-    double distHeuristic = diagDistance2D(currNode.cell, goal);     // Lower bound for distance on a grid 
-    double altHeuristic = altitudeHeuristic(currNode.cell, goal);        // Lower bound cost due to altitude change
+    double distHeuristic = diagDistance2D(currNode.cell, goal);           // Lower bound for distance on a grid 
+    double riskH = riskHeuristic(currNode.cell, goal);
+    double altHeuristic = altitudeHeuristic(currNode.cell, goal);         // Lower bound cost due to altitude change
     double smoothHeuristic = smoothnessHeuristic(currNode, goal);  
     printf("%s: \t%3.2f \t%3.2f \t%3.2f \t%3.2f", currNode.cell.asString().c_str(), 
             currCost, heuristic, actualCost, ovEst);
     printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f", edgeC, edgeD, edgeR, edgeS);
-    printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f", heuristic, distHeuristic, altHeuristic, smoothHeuristic);
+    printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f \t%3.2f", heuristic, distHeuristic, riskH, altHeuristic, smoothHeuristic);
 
     Node u = currNode;
     double angU = (u.cell - u.parent).angle();
     double angGoal = (goal - u.cell).angle(); 
     double angDiff = angGoal - angU;  
-    angDiff = std::fabs(angleToRange(angDiff));   // positive angle difference
+    angDiff = angleToRange(angDiff);   
+    angDiff = std::fabs(angDiff);       // positive angle difference
     double num45DegTurns = std::ceil(angDiff / (M_PI/4));    // Minimum number of 45-turns to goal
     printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f \n", angU, angGoal, angDiff, num45DegTurns);
 
