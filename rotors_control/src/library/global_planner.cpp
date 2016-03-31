@@ -320,8 +320,9 @@ double GlobalPlanner::smoothnessHeuristic(const Node & u, const Cell & goal) {
   }
   double angU = (u.cell - u.parent).angle();
   double angGoal = (goal - u.cell).angle(); 
-  double angDiff = std::fabs(angleToRange(angGoal - angU));  // positive angle difference
-  double num45DegTurns = std::ceil(angDiff / (M_PI/4));    // Minimum number of 45-turns to goal
+  double angDiff = angGoal - angU;  
+  angDiff = std::fabs(angleToRange(angDiff));             // positive angle difference
+  double num45DegTurns = std::ceil(angDiff / (M_PI/4));   // Minimum number of 45-turns to goal
   return smoothFactor * num45DegTurns;
 }
 
@@ -412,7 +413,7 @@ void GlobalPlanner::printPathStats(const std::vector<Cell> & path,
   Node lastNode = Node(start, startParent);
 
   printf("Cell:\t \tcurrCo \theuri \ttoGoal \tOvEst \t|| \tEdgeC  \tEdgeD \tEdgeR  \tEdgeS \t||\theuris \tDist  \tAlti   \tSmooth \n");
-  printf("%s: \t%3.2f\t %3.2f\t %3.2f\t %3.2f \t|| \n", start.asString().c_str(), 
+  printf("%s: \t%3.2f \t%3.2f \t%3.2f \t%3.2f \t|| \n", start.asString().c_str(), 
           currCost, getHeuristic(lastNode, goal), totalCost, totalCost / getHeuristic(lastNode, goal));
   
   for(int i=0; i < path.size(); ++i) {
@@ -433,7 +434,16 @@ void GlobalPlanner::printPathStats(const std::vector<Cell> & path,
     printf("%s: \t%3.2f \t%3.2f \t%3.2f \t%3.2f", currNode.cell.asString().c_str(), 
             currCost, heuristic, actualCost, ovEst);
     printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f", edgeC, edgeD, edgeR, edgeS);
-    printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f \n", heuristic, distHeuristic, altHeuristic, smoothHeuristic);
+    printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f", heuristic, distHeuristic, altHeuristic, smoothHeuristic);
+
+    Node u = currNode;
+    double angU = (u.cell - u.parent).angle();
+    double angGoal = (goal - u.cell).angle(); 
+    double angDiff = angGoal - angU;  
+    angDiff = std::fabs(angleToRange(angDiff));   // positive angle difference
+    double num45DegTurns = std::ceil(angDiff / (M_PI/4));    // Minimum number of 45-turns to goal
+    printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f \n", angU, angGoal, angDiff, num45DegTurns);
+
     lastNode = currNode;
   }
   printf("\n\n");

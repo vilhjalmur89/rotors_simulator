@@ -52,8 +52,8 @@ PathHandlerNode::PathHandlerNode() {
     current_waypoint_publisher.publish(rot_msg);
 
     // 90 deg fix
-    // rot_msg.pose.position.x = -(last_pos.pose.position.y + vec.getY());
-    // rot_msg.pose.position.y =  (last_pos.pose.position.x + vec.getX());
+    rot_msg.pose.position.x = -(last_pos.pose.position.y + vec.getY());
+    rot_msg.pose.position.y =  (last_pos.pose.position.x + vec.getX());
 
     // Publish setpoint to Mavros
     mavros_waypoint_publisher.publish(rot_msg);
@@ -87,8 +87,8 @@ void PathHandlerNode::PositionCallback(
 
   last_pos = pose_msg;
   // 90 deg fix
-  // last_pos.pose.position.x = (pose_msg.pose.position.y);
-  // last_pos.pose.position.y = -(pose_msg.pose.position.x);
+  last_pos.pose.position.x = (pose_msg.pose.position.y);
+  last_pos.pose.position.y = -(pose_msg.pose.position.x);
 
   // printf("%d \n", path.size());
   // printf("%f %f %f \n", last_msg.pose.position.x, last_msg.pose.position.y, last_msg.pose.position.z);
