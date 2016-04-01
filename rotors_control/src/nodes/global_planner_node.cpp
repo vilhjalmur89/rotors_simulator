@@ -87,7 +87,7 @@ void GlobalPlannerNode::PositionCallback(
 void GlobalPlannerNode::ClickedPointCallback(
     const geometry_msgs::PointStamped& msg) {
 
-  SetNewGoal(Cell(msg.point.x, msg.point.y, 2.5));
+  SetNewGoal(Cell(msg.point.x, msg.point.y, 1.5));
 }
 
 void GlobalPlannerNode::OctomapFullCallback(

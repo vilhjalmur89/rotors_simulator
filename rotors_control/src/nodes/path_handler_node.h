@@ -11,6 +11,8 @@
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>  // getYaw
 
+#include "rotors_control/common.h" // hasSameYawAndAltitude
+
 
 // #include <math.h>           
 

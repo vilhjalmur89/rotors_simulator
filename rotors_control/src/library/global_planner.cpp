@@ -290,11 +290,11 @@ double GlobalPlanner::getTurnSmoothness(const Node & u, const Node & v) {
   Cell vDiff = v.cell - v.parent;
 
   int num45DegTurns;
-  if ( (uDiff.x() == 0 && uDiff.y() == 0) || (vDiff.x() == 0 && vDiff.y() == 0)) {
-    num45DegTurns = 1;    // Starting or ending vertical motion
-  }
-  else if (uDiff.x() - vDiff.x() == 0 && uDiff.y() - vDiff.y() == 0) {
+  if ( uDiff.x() == 0 && uDiff.y() == 0 && vDiff.x() == 0 && vDiff.y() == 0) {
     num45DegTurns = 0;    // Maintaining vertical motion is smooth
+  }
+  else if ( (uDiff.x() == 0 && uDiff.y() == 0) || (vDiff.x() == 0 && vDiff.y() == 0)) {
+    num45DegTurns = 1;    // Starting or ending vertical motion
   }
   else if (uDiff.x() == -vDiff.x() && uDiff.y() == -vDiff.y()){
     num45DegTurns = 4;    // 180 degrees, the formula below doesn't work for this case 
@@ -302,6 +302,7 @@ double GlobalPlanner::getTurnSmoothness(const Node & u, const Node & v) {
   else {
     num45DegTurns = std::abs(uDiff.x() - vDiff.x()) + std::abs(uDiff.y() - vDiff.y());
   }
+  // TODO: add 1 for altitude change
   return num45DegTurns * num45DegTurns;     // Squaring makes small turns less costly
 }
 
@@ -315,9 +316,16 @@ double GlobalPlanner::getEdgeCost(const Node & u, const Node & v) {
 
 // Heuristic Function
 double GlobalPlanner::riskHeuristic(const Cell & u, const Cell & goal) {
-  // TODO: Heuristic based on the risk of flying at current altitude
+  if (u == goal) {
+    return 0.0;
+  }  
   double unexploredRisk = (1.0 + 6.0 * neighborRiskFlow) * explorePenalty * riskFactor;  
-  return diagDistance2D(u, goal) * unexploredRisk * heightPrior[u.z()];
+  double xyDist = std::max(diagDistance2D(u, goal) - 1.0, 0.0);   // XY distance excluding the goal cell
+  double xyRisk = xyDist * unexploredRisk * heightPrior[u.z()];
+  double zRisk = (std::abs(u.z() - goal.z())) * unexploredRisk * std::min(heightPrior[u.z()], heightPrior[goal.z()]);
+  // TODO: instead of subtracting 1 from the xyDist, subtract 1 from the combined xy and z dist
+  double goalRisk = getRisk(goal) * riskFactor;
+  return xyRisk + zRisk + goalRisk;
 }
 
 double GlobalPlanner::smoothnessHeuristic(const Node & u, const Cell & goal) {
@@ -330,8 +338,8 @@ double GlobalPlanner::smoothnessHeuristic(const Node & u, const Cell & goal) {
   double angU = (u.cell - u.parent).angle();
   double angGoal = (goal - u.cell).angle(); 
   double angDiff = angGoal - angU;  
-  angDiff = std::fabs(angleToRange(angDiff));             // positive angle difference
-  double num45DegTurns = std::ceil(angDiff / (M_PI/4));   // Minimum number of 45-turns to goal
+  angDiff = std::fabs(angleToRange(angDiff));                    // positive angle difference
+  int num45DegTurns = std::ceil(angDiff / (M_PI/4) - 0.01);   // Minimum number of 45-turns to goal
   return smoothFactor * num45DegTurns;
 }
 
@@ -408,6 +416,8 @@ void GlobalPlanner::goBack() {
   pathToWaypoints(path);
 }
 
+
+// Prints details about the cost and heuristic functions for every step of the path
 void GlobalPlanner::printPathStats(const std::vector<Cell> & path, 
                                    const Cell startParent, const Cell start,
                                    const Cell goal, double totalCost, 
@@ -419,13 +429,33 @@ void GlobalPlanner::printPathStats(const std::vector<Cell> & path,
   }
 
   printf("\n\n\nPath analysis: \n");
-  double currCost = 0.0;
-  Node lastNode = Node(start, startParent);
 
-  printf("Cell:\t \tcurrCo \theuri \ttoGoal \tOvEst \t|| \tEdgeC  \tEdgeD \tEdgeR  \tEdgeS \t||\theuris \tDist  \tAlti   \tSmooth \n");
+  // Loop through the path to get real values to compare to the heuristics
+  double totalDistCost = 0.0;
+  double totalRiskCost = 0.0;
+  double totalAltChangeCost = 0.0;
+  double totalSmoothCost = 0.0;
+  Node lastNode = Node(start, startParent);
+  for(int i=0; i < path.size(); ++i) {
+    Node currNode = Node(path[i], lastNode.cell);
+    if (currNode.cell.z() - currNode.parent.z() == 0) {
+      totalDistCost += getEdgeDist(currNode.parent, currNode.cell);
+    }
+    else {
+      totalAltChangeCost += getEdgeDist(currNode.parent, currNode.cell);
+    }
+    totalRiskCost += riskFactor * getRisk(currNode.cell);
+    totalSmoothCost += smoothFactor * getTurnSmoothness(lastNode, currNode);
+    lastNode = currNode;
+  }
+
+  double currCost = 0.0;
+  lastNode = Node(start, startParent);
+
+  printf("Cell:\t \tcurrCo \theuri \ttoGoal \tOvEst \t|| \tEdgeC  \tEdgeD \tEdgeR \tEdgeS \t||\theuris \t\tDist \t\tRisk  \t\tAlti   \t\tSmooth\n");
   printf("%s: \t%3.2f \t%3.2f \t%3.2f \t%3.2f \t|| \n", start.asString().c_str(), 
           currCost, getHeuristic(lastNode, goal), totalCost, totalCost / getHeuristic(lastNode, goal));
-  
+
   for(int i=0; i < path.size(); ++i) {
     Node currNode = Node(path[i], lastNode.cell);
     currCost += getEdgeCost(lastNode, currNode);
@@ -438,6 +468,15 @@ void GlobalPlanner::printPathStats(const std::vector<Cell> & path,
     double edgeR = riskFactor * getRisk(currNode.cell);
     double edgeS = smoothFactor * getTurnSmoothness(lastNode, currNode);
 
+    if (currNode.cell.z() - currNode.parent.z() == 0) {
+      totalDistCost -= edgeD;
+    }
+    else {
+      totalAltChangeCost -= edgeD;
+    }
+    totalRiskCost -= edgeR;
+    totalSmoothCost -= edgeS;
+
     double distHeuristic = diagDistance2D(currNode.cell, goal);           // Lower bound for distance on a grid 
     double riskH = riskHeuristic(currNode.cell, goal);
     double altHeuristic = altitudeHeuristic(currNode.cell, goal);         // Lower bound cost due to altitude change
@@ -445,16 +484,21 @@ void GlobalPlanner::printPathStats(const std::vector<Cell> & path,
     printf("%s: \t%3.2f \t%3.2f \t%3.2f \t%3.2f", currNode.cell.asString().c_str(), 
             currCost, heuristic, actualCost, ovEst);
     printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f", edgeC, edgeD, edgeR, edgeS);
-    printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f \t%3.2f", heuristic, distHeuristic, riskH, altHeuristic, smoothHeuristic);
+    printf("\t|| \t%3.2f (%3.2f) \t%3.2f (%3.2f) \t%3.2f (%3.2f) \t%3.2f (%3.2f) \t%3.2f (%3.2f)\n", 
+      heuristic, actualCost, distHeuristic, totalDistCost, riskH, totalRiskCost, altHeuristic, totalAltChangeCost, smoothHeuristic, totalSmoothCost);
 
-    Node u = currNode;
-    double angU = (u.cell - u.parent).angle();
-    double angGoal = (goal - u.cell).angle(); 
-    double angDiff = angGoal - angU;  
-    angDiff = angleToRange(angDiff);   
-    angDiff = std::fabs(angDiff);       // positive angle difference
-    double num45DegTurns = std::ceil(angDiff / (M_PI/4));    // Minimum number of 45-turns to goal
-    printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f \n", angU, angGoal, angDiff, num45DegTurns);
+
+    if (smoothHeuristic > 4 * smoothFactor) {
+      Node u = currNode;
+      double angU = (u.cell - u.parent).angle();
+      double angGoal = (goal - u.cell).angle(); 
+      double angDiff = angGoal - angU;  
+      double angDiff2 = angleToRange(angDiff);   
+      double angDiff3 = std::fabs(angDiff2);       // positive angle difference
+      double num45DegTurns = std::ceil(angDiff3 / (M_PI/4));    // Minimum number of 45-turns to goal
+      printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f \n", angU, angGoal, angDiff3, num45DegTurns);
+      ROS_INFO("WTF? \n %f %f \n\n\n\n\n\n\n\n\n\n\n\n", angleToRange(5.5), angleToRange(-5.5));
+    }
 
     lastNode = currNode;
   }

@@ -193,7 +193,7 @@ public:
 class GlobalPlanner {
  public:
   // octomap::OcTree* octree;
-  std::vector<double> heightPrior { 1.0, 1.0, 0.8, 0.6, 0.5, 0.4, 0.3,
+  std::vector<double> heightPrior { 1.0, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3,
                                     0.2, 0.2, 0.1, 0.1, 0.1, 0.1};
   std::set<Cell> occupied;
   std::unordered_map<Cell, double, HashCell> occProb;
@@ -206,7 +206,7 @@ class GlobalPlanner {
   double currYaw;
   Cell goalPos = Cell(0, 0, 3);
   bool goingBack = false;
-  double overEstimateFactor = 2.0;
+  double overEstimateFactor = 1.5;
   int minHeight = 1;
   int maxHeight = 12;
   double maxPathProb = -1.0;

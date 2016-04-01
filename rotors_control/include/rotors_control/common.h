@@ -105,8 +105,17 @@ void vectorFromSkewMatrix(Eigen::Matrix3d& skew_matrix, Eigen::Vector3d* vector)
 double angleToRange(double angle) {
   // returns the angle in the range [-pi, pi]
   angle += M_PI;
-  angle -= (2*M_PI) * floor( angle / (2*M_PI) );
+  angle -= (2*M_PI) * std::floor( angle / (2*M_PI) );
   angle -= M_PI;
+  return angle;
+}
+
+bool hasSameYawAndAltitude(const geometry_msgs::Pose& msg1,
+                         const geometry_msgs::Pose& msg2) {
+
+  return msg1.orientation.z == msg2.orientation.z
+      && msg1.orientation.w == msg2.orientation.w
+      && msg1.position.z == msg2.position.z;
 }
 
 
