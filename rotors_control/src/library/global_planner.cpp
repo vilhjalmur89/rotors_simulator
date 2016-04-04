@@ -258,27 +258,25 @@ double GlobalPlanner::getEdgeDist(const Cell & u, const Cell & v) {
   return downCost;
 }
 
+double GlobalPlanner::getSingleCellRisk(const Cell & cell){
+  // Risk without looking at neighbors
+  if (cell.z() < 1) {
+    return 1.0;   // Octomap does not keep track of the ground
+  }
+  if (occProb.find(cell) != occProb.end()) {
+    return octomap::probability(occProb[cell]);   // If the cell has been seen
+  }
+  return explorePenalty;    // Fixed risk for unexplored cells
+}
+
 double GlobalPlanner::getRisk(const Cell & cell){
   // Computes the risk from the cell, its neighbors and the prior
 
-  double risk = explorePenalty;
-  if (occProb.find(cell) != occProb.end()) {
-    risk = octomap::probability(occProb[cell]);
-  }
+  double risk = getSingleCellRisk(cell);
 
-  Cell front = Cell(cell.x()+1, cell.y(), cell.z());
-  Cell back = Cell(cell.x()-1, cell.y(), cell.z());
-  Cell right = Cell(cell.x(), cell.y()+1, cell.z());
-  Cell left = Cell(cell.x(), cell.y()-1, cell.z());
-  Cell up = Cell(cell.x(), cell.y(), cell.z()+1);
-  Cell down = Cell(cell.x(), cell.y(), cell.z()-1);
-  std::vector<Cell> cells {front, back, right, left, up, down};
-
-  for (Cell cell : cells) {
-    if (occProb.find(cell) != occProb.end()) {
-      risk += neighborRiskFlow * octomap::probability(occProb[cell]);
-    }
-    else risk += neighborRiskFlow * explorePenalty;
+  for (Cell direction : flowDirections) {
+    Cell neighbor = cell + direction;
+    risk += neighborRiskFlow * getSingleCellRisk(neighbor);
   }
 
   double prior = heightPrior[floor(cell.z())];
@@ -357,7 +355,8 @@ double GlobalPlanner::altitudeHeuristic(const Cell & u, const Cell & goal) {
 }
 
 double GlobalPlanner::getHeuristic(const Node & u, const Cell & goal) {
-  double heuristic = diagDistance2D(u.cell, goal);     // Lower bound for distance on a grid
+  // Only overestimate the distance
+  double heuristic = overEstimateFactor * diagDistance2D(u.cell, goal);
   heuristic += riskHeuristic(u.cell, goal);            // Risk through a straight-line path of unexplored space
   heuristic += altitudeHeuristic(u.cell, goal);        // Lower bound cost due to altitude change
   heuristic += smoothnessHeuristic(u, goal);           // Lower bound cost due to turning  
@@ -520,9 +519,27 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   Cell parent = s.getNeighborFromYaw(currYaw + M_PI); // The cell behind the start cell
   ROS_INFO("Planning a path from %s to %s", s.asString().c_str(), t.asString().c_str());
   ROS_INFO("Planning a path from (%d,%d,%d) to (%d,%d,%d)", s.x(), s.y(), s.z(), t.x(), t.y(), t.z());
-  bool foundPath;
+  bool foundPath = false;
   // foundPath = FindPath(path, s, t);
-  foundPath = FindSmoothPath(path, s, t, parent);
+  // foundPath = FindSmoothPath(path, s, t, parent);
+
+  while (overEstimateFactor > 1.01 && maxIterations > lastIterations) {
+    std::vector<Cell> newPath;
+    bool foundNewPath = FindSmoothPath(newPath, s, t, parent);
+    if (foundNewPath) {
+      path = newPath;
+      foundPath = true;
+      maxIterations -= lastIterations;
+      overEstimateFactor = (overEstimateFactor - 1.0) / 4.0 + 1.0;
+    }
+    else {
+      break;
+    }
+  }
+
+  maxIterations = 2000;
+  overEstimateFactor = 4.0;
+
   return foundPath;
 }
 
@@ -568,7 +585,6 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell & s, Cell t) {
         parent[v] = u;
         distance[v] = newDist;
         // TODO: try Dynamic Weighting in stead of a constant overEstimateFactor
-        // TODO: path smoothness heuristic
         double heuristic = diagDistance2D(v, t);                // Lower bound for distance on a grid 
         heuristic += upCost * std::max(0, t.z() - v.z());    // Minumum cost for increasing altitude
         heuristic += std::max(0, v.z() - t.z());                // Minumum cost for decreasing altitude
@@ -645,8 +661,7 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
         parent[v] = u;
         distance[v] = newDist;
         // TODO: try Dynamic Weighting in stead of a constant overEstimateFactor
-        double heuristic = getHeuristic(v, t);
-        double overestimatedHeuristic = newDist + overEstimateFactor * heuristic;
+        double overestimatedHeuristic = newDist + getHeuristic(v, t);
         // double heuristic = newDist + overEstimateFactor*distance2D(v, t);
         pq.push(std::make_pair(v, overestimatedHeuristic));
       }
@@ -664,9 +679,10 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
     walker = parent[walker];
   }
   std::reverse(path.begin(),path.end());
-  printPathStats(path, startParent, start, t, distance[bestGoalNode], distance);
-
-  ROS_INFO("Found path with %d iterations, itDistSquared: %.3f", numIter, numIter / squared(path.size()));
+  // printPathStats(path, startParent, start, t, distance[bestGoalNode], distance);
+  lastIterations = numIter;
+  // ROS_INFO("Found path with %d iterations, itDistSquared: %.3f", numIter, numIter / squared(path.size()));
+  ROS_INFO("overEstimateFactor: %2.2f, \t path cost: %2.2f, \t numIter: %d", overEstimateFactor, distance[bestGoalNode], numIter);
   
   return true;
 }

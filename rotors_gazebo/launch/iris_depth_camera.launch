@@ -7,7 +7,7 @@
   <arg name="gui" default="true"/>
 
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
-    <arg name="world_name" value="$(find rotors_gazebo)/worlds/test_city.world"/>
+    <arg name="world_name" value="$(find rotors_gazebo)/worlds/test_city_2.world"/>
     <!-- <arg name="debug" value="true" /> -->
     <arg name="headless" value="$(arg headless)"/>
     <arg name="gui" value="$(arg gui)"/>

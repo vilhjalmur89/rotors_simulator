@@ -193,8 +193,11 @@ public:
 class GlobalPlanner {
  public:
   // octomap::OcTree* octree;
-  std::vector<double> heightPrior { 1.0, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3,
-                                    0.2, 0.2, 0.1, 0.1, 0.1, 0.1};
+  std::vector<double> heightPrior { 1.0, 0.67, 0.5, 0.33, 0.25, 0.17, 0.13,
+                                    0.08, 0.06, 0.04, 0.03, 0.02, 0.01};
+  
+  std::vector<Cell> flowDirections {Cell(1,0,0), Cell(-1,0,0), Cell(0,1,0), Cell(0,-1,0), Cell(0,0,1), Cell(0,0,-1)};
+
   std::set<Cell> occupied;
   std::unordered_map<Cell, double, HashCell> occProb;
   std::set<Cell> seen;        // Set of cells that were explored in last search
@@ -206,16 +209,17 @@ class GlobalPlanner {
   double currYaw;
   Cell goalPos = Cell(0, 0, 3);
   bool goingBack = false;
-  double overEstimateFactor = 1.5;
+  double overEstimateFactor = 4.0;
   int minHeight = 1;
   int maxHeight = 12;
   double maxPathProb = -1.0;
   double maxBailProb = 1.0;
   double inf = std::numeric_limits<double>::infinity();
-  int maxIterations = 10000;
+  int maxIterations = 2000;
+  int lastIterations = 0;
   double smoothFactor = 1.0;
-  double riskFactor = 10.0;
-  double neighborRiskFlow = 1.0;
+  double riskFactor = 20.0;
+  double neighborRiskFlow = 0.5;
   double explorePenalty = 0.015;
   double upCost = 3.0;
   double downCost = 1.0;
@@ -235,6 +239,7 @@ class GlobalPlanner {
                                    const Cell goal, double totalDistance, std::map<Node, double> & distance);
 
   double getEdgeDist(const Cell & u, const Cell & v);
+  double getSingleCellRisk(const Cell & cell);
   double getRisk(const Cell & cell);
   double getTurnSmoothness(const Node & u, const Node & v);
   double getEdgeCost(const Node & u, const Node & v);
