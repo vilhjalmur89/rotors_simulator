@@ -320,7 +320,7 @@ double GlobalPlanner::riskHeuristic(const Cell & u, const Cell & goal) {
     return 0.0;
   }  
   double unexploredRisk = (1.0 + 6.0 * neighborRiskFlow) * explorePenalty * riskFactor;  
-  double xyDist = std::max(diagDistance2D(u, goal) - 1.0, 0.0);   // XY distance excluding the goal cell
+  double xyDist = diagDistance2D(u, goal) - 1.0;   // XY distance excluding the goal cell
   double xyRisk = xyDist * unexploredRisk * heightPrior[u.z()];
   double zRisk = (std::abs(u.z() - goal.z())) * unexploredRisk * std::min(heightPrior[u.z()], heightPrior[goal.z()]);
   // TODO: instead of subtracting 1 from the xyDist, subtract 1 from the combined xy and z dist
@@ -330,17 +330,22 @@ double GlobalPlanner::riskHeuristic(const Cell & u, const Cell & goal) {
 
 double GlobalPlanner::smoothnessHeuristic(const Node & u, const Cell & goal) {
   if (u.cell.x() == goal.x() && u.cell.y() == goal.y()) { 
-    return 0.0;     // Above or below the goal
+    return 0.0;     // directly above or below the goal
   }
   if (u.cell.x() == u.parent.x() && u.cell.y() == u.parent.y()) { 
-    return 0.0;     // Vertical motion
+    return smoothFactor * 2.0;     // Vertical motion not directly above or below the goal
   }
+ 
   double angU = (u.cell - u.parent).angle();
   double angGoal = (goal - u.cell).angle(); 
   double angDiff = angGoal - angU;  
   angDiff = std::fabs(angleToRange(angDiff));                    // positive angle difference
   int num45DegTurns = std::ceil(angDiff / (M_PI/4) - 0.01);   // Minimum number of 45-turns to goal
-  return smoothFactor * num45DegTurns;
+
+  // If there is height difference we need to change to vertical movement at least once 
+  int altitudeChange = u.cell.z() == goal.z() ? 0 : 1;
+
+  return smoothFactor * (num45DegTurns + altitudeChange);
 }
 
 double GlobalPlanner::altitudeHeuristic(const Cell & u, const Cell & goal) {
