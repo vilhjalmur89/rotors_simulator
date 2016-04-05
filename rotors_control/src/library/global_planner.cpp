@@ -271,6 +271,7 @@ double GlobalPlanner::getSingleCellRisk(const Cell & cell){
 
 double GlobalPlanner::getRisk(const Cell & cell){
   // Computes the risk from the cell, its neighbors and the prior
+  // TODO: is vertical movement with risk worse than horizontal?
 
   double risk = getSingleCellRisk(cell);
 
@@ -421,6 +422,20 @@ void GlobalPlanner::goBack() {
 }
 
 
+PathInfo GlobalPlanner::getPathInfo(const std::vector<Cell> & path, const Node startNode) {
+  Node lastNode = startNode;
+  PathInfo pathInfo = {};
+  for(int i=0; i < path.size(); ++i) {
+    Node currNode = Node(path[i], lastNode.cell);
+    pathInfo.cost += getEdgeCost(lastNode, currNode);
+    pathInfo.dist += getEdgeDist(currNode.parent, currNode.cell);
+    pathInfo.risk += riskFactor * getRisk(currNode.cell);
+    pathInfo.smoothness += smoothFactor * getTurnSmoothness(lastNode, currNode);
+    lastNode = currNode;
+  }
+  return pathInfo;
+}
+
 // Prints details about the cost and heuristic functions for every step of the path
 void GlobalPlanner::printPathStats(const std::vector<Cell> & path, 
                                    const Cell startParent, const Cell start,
@@ -518,32 +533,50 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   Cell t = goalPos;
   Cell parent = s.getNeighborFromYaw(currYaw + M_PI); // The cell behind the start cell
   ROS_INFO("Planning a path from %s to %s", s.asString().c_str(), t.asString().c_str());
-  ROS_INFO("Planning a path from (%d,%d,%d) to (%d,%d,%d)", s.x(), s.y(), s.z(), t.x(), t.y(), t.z());
   bool foundPath = false;
-  // foundPath = FindPath(path, s, t);
-  // foundPath = FindSmoothPath(path, s, t, parent);
+  double bestPathCost = inf;
+  overEstimateFactor = 64.0;
+  maxIterations = 2000;
 
   while (overEstimateFactor > 1.01 && maxIterations > lastIterations) {
     std::vector<Cell> newPath;
-    bool foundNewPath = FindSmoothPath(newPath, s, t, parent);
+    bool foundNewPath;
+    if (overEstimateFactor > 2) {
+      foundNewPath = FindPathOld(newPath, s, t);  // No need to search with smoothness
+    } 
+    else {
+      foundNewPath = FindSmoothPath(newPath, s, t, parent);
+    }
     if (foundNewPath) {
-      path = newPath;
-      foundPath = true;
-      maxIterations -= lastIterations;
-      overEstimateFactor = (overEstimateFactor - 1.0) / 4.0 + 1.0;
+      PathInfo pathInfo = getPathInfo(newPath, Node(s, parent));
+      printf("(cost: %2.2f, dist: %2.2f, risk: %2.2f, smooth: %2.2f) \n", pathInfo.cost, pathInfo.dist, pathInfo.risk, pathInfo.smoothness);
+      if (pathInfo.cost < bestPathCost) {
+        bestPathCost = pathInfo.cost;
+        lastPathInfo = pathInfo;
+        path = newPath;
+        foundPath = true;
+      }
     }
     else {
       break;
     }
+      maxIterations -= lastIterations;
+      overEstimateFactor = (overEstimateFactor - 1.0) / 4.0 + 1.0;
   }
-
-  maxIterations = 2000;
-  overEstimateFactor = 4.0;
 
   return foundPath;
 }
 
-bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell & s, Cell t) {
+// Search very greedily without smoothness to get a path as quickly as possible
+bool GlobalPlanner::FindGreedyPath(std::vector<Cell> & path, const Cell & s, Cell t) {
+  double oldOverEstimateFactor = overEstimateFactor;
+  overEstimateFactor = 100;
+  bool foundPath = FindPathOld(path, s, t);
+  overEstimateFactor = oldOverEstimateFactor;
+  return foundPath;
+}
+
+bool GlobalPlanner::FindPathOld(std::vector<Cell> & path, const Cell & s, Cell t) {
   // A* to find a path from currPos to goalPos, true iff it found a path
 
   // Initialize containers
@@ -607,7 +640,10 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path, const Cell & s, Cell t) {
   }
   std::reverse(path.begin(),path.end());
 
-  ROS_INFO("Found path with %d iterations, itDistSquared: %.3f", numIter, numIter / squared(path.size()));
+  lastIterations = numIter;
+  lastPathCost = distance[t];
+  // ROS_INFO("Found path with %d iterations, itDistSquared: %.3f", numIter, numIter / squared(path.size()));
+  printf("overEstimateFactor: %2.2f, \t numIter: %d \t path cost: %2.2f \t", overEstimateFactor, numIter, lastPathCost);
   
   return true;
 }  
@@ -660,7 +696,7 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
       // Found a better path to v, have to add v to the queue 
         parent[v] = u;
         distance[v] = newDist;
-        // TODO: try Dynamic Weighting in stead of a constant overEstimateFactor
+        // TODO: try Dynamic Weighting instead of a constant overEstimateFactor
         double overestimatedHeuristic = newDist + getHeuristic(v, t);
         // double heuristic = newDist + overEstimateFactor*distance2D(v, t);
         pq.push(std::make_pair(v, overestimatedHeuristic));
@@ -681,8 +717,9 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
   std::reverse(path.begin(),path.end());
   // printPathStats(path, startParent, start, t, distance[bestGoalNode], distance);
   lastIterations = numIter;
+  lastPathCost = distance[bestGoalNode];
   // ROS_INFO("Found path with %d iterations, itDistSquared: %.3f", numIter, numIter / squared(path.size()));
-  ROS_INFO("overEstimateFactor: %2.2f, \t path cost: %2.2f, \t numIter: %d", overEstimateFactor, distance[bestGoalNode], numIter);
+  printf("overEstimateFactor: %2.2f, \t numIter: %d \t path cost: %2.2f \t", overEstimateFactor, numIter, lastPathCost);
   
   return true;
 }

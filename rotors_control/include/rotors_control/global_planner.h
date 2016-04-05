@@ -189,6 +189,14 @@ public:
     }
 };
 
+struct PathInfo {
+  bool foundPath;
+  double cost;
+  double dist;
+  double risk;
+  double smoothness;
+};
+
 
 class GlobalPlanner {
  public:
@@ -217,6 +225,8 @@ class GlobalPlanner {
   double inf = std::numeric_limits<double>::infinity();
   int maxIterations = 2000;
   int lastIterations = 0;
+  double lastPathCost = 0.0;
+  PathInfo lastPathInfo;
   double smoothFactor = 1.0;
   double riskFactor = 20.0;
   double neighborRiskFlow = 0.5;
@@ -235,8 +245,6 @@ class GlobalPlanner {
   void increaseResolution(double minDist, double minRot, double minTime);
   void truncatePath();
   void getOpenNeighbors(const Cell & cell, std::vector<CellDistancePair> & neighbors) const;
-  void printPathStats(const std::vector<Cell> & path, const Cell startParent, const Cell start,
-                                   const Cell goal, double totalDistance, std::map<Node, double> & distance);
 
   double getEdgeDist(const Cell & u, const Cell & v);
   double getSingleCellRisk(const Cell & cell);
@@ -252,8 +260,14 @@ class GlobalPlanner {
   geometry_msgs::PoseStamped createPoseMsg(double x, double y, double z, double yaw);
   void pathToWaypoints(std::vector<Cell> & path);
   void goBack();
+
+  PathInfo getPathInfo(const std::vector<Cell> & path, const Node lastNode);
+  void printPathStats(const std::vector<Cell> & path, const Cell startParent, const Cell start,
+                                   const Cell goal, double totalDistance, std::map<Node, double> & distance);
+  
   bool FindPath(std::vector<Cell> & path);
-  bool FindPath(std::vector<Cell> & path, const Cell & s, Cell t);
+  bool FindGreedyPath(std::vector<Cell> & path, const Cell & s, Cell t);
+  bool FindPathOld(std::vector<Cell> & path, const Cell & s, Cell t);
   bool FindSmoothPath(std::vector<Cell> & path, const Cell & s, const Cell & t, const Cell & parent);
   bool getGlobalPath();
 
