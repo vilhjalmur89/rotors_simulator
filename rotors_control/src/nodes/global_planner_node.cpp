@@ -67,10 +67,10 @@ void GlobalPlannerNode::PositionCallback(
   auto rot_msg = msg;
   double yaw = tf::getYaw(rot_msg.pose.orientation);
 
-  // 90 deg fix
-  rot_msg.pose.position.x = (msg.pose.position.y);
-  rot_msg.pose.position.y = -(msg.pose.position.x);
-  yaw -= M_PI/2;
+  
+  rot_msg.pose.position.x = (msg.pose.position.y);  // 90 deg fix
+  rot_msg.pose.position.y = -(msg.pose.position.x); // 90 deg fix
+  yaw -= M_PI/2;                                    // 90 deg fix
 
   global_planner.setPose(rot_msg.pose.position, yaw);    // TODO: call with just pose
 
