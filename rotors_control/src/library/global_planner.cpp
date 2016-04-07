@@ -20,6 +20,8 @@
 
 #include "rotors_control/global_planner.h"
 
+#include <ctime>  // clock
+
 namespace rotors_control {
 
 
@@ -101,6 +103,8 @@ void GlobalPlanner::setGoal(const Cell & goal) {
 
 bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
   // Returns false iff current path has an obstacle
+  // Going through the octomap can take more than 50 ms for 100m x 100m explored map 
+
   bool pathIsBlocked = false;
   occupied.clear();
   octomap::AbstractOcTree* tree = octomap_msgs::msgToMap(msg);
@@ -125,6 +129,15 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
     }
   }
   delete octree;
+
+  if (lastPath.size() > 0) {
+    PathInfo newInfo = getPathInfo(lastPath, Node(lastPath[0], lastPath[0]));
+    if (newInfo.risk > lastPathInfo.risk + 10) {
+      pathIsBlocked = true;
+      printf("Risk increase");
+    }
+  }
+
   return !pathIsBlocked;
 }
 
@@ -179,6 +192,16 @@ void GlobalPlanner::truncatePath() {
 
   pathCells.clear();
   waypoints.resize(0);
+}
+
+bool GlobalPlanner::isNearWall(const Cell & cell) {
+  for (Cell dir : diagonalDirections) {
+    Cell neighbor = cell + dir;
+    if (occupied.find(neighbor) != occupied.end()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void GlobalPlanner::getOpenNeighbors(const Cell & cell, std::vector<CellDistancePair> & neighbors) const {
@@ -547,12 +570,14 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
     else {
       foundNewPath = FindSmoothPath(newPath, s, t, parent);
     }
+
     if (foundNewPath) {
       PathInfo pathInfo = getPathInfo(newPath, Node(s, parent));
       printf("(cost: %2.2f, dist: %2.2f, risk: %2.2f, smooth: %2.2f) \n", pathInfo.cost, pathInfo.dist, pathInfo.risk, pathInfo.smoothness);
       if (pathInfo.cost < bestPathCost) {
         bestPathCost = pathInfo.cost;
         lastPathInfo = pathInfo;
+        lastPath = newPath;
         path = newPath;
         foundPath = true;
       }
@@ -587,6 +612,7 @@ bool GlobalPlanner::FindPathOld(std::vector<Cell> & path, const Cell & s, Cell t
   pq.push(std::make_pair(s, 0.0));
   distance[s] = 0.0;
   int numIter = 0;
+  double minDistHeuristic = inf;
 
   // Search until all reachable cells have been found, run out of time or t is found,
   while (!pq.empty() && numIter < maxIterations) {
@@ -607,8 +633,11 @@ bool GlobalPlanner::FindPathOld(std::vector<Cell> & path, const Cell & s, Cell t
     for (auto cellDistV : neighbors) {
       Cell v = cellDistV.first;
       double costOfEdge = cellDistV.second;
-      double risk = getRisk(v);
-      double newDist = d + costOfEdge + riskFactor * risk;
+      double risk = riskFactor * getRisk(v);
+      if (risk > maxCellRisk && v != t) {
+        continue;
+      }
+      double newDist = d + costOfEdge + risk;
       double oldDist = inf;
       if (distance.find(v) != distance.end()) {
         oldDist = distance[v];
@@ -619,8 +648,14 @@ bool GlobalPlanner::FindPathOld(std::vector<Cell> & path, const Cell & s, Cell t
         distance[v] = newDist;
         // TODO: try Dynamic Weighting in stead of a constant overEstimateFactor
         double heuristic = diagDistance2D(v, t);                // Lower bound for distance on a grid 
-        heuristic += upCost * std::max(0, t.z() - v.z());    // Minumum cost for increasing altitude
+        heuristic += upCost * std::max(0, t.z() - v.z());       // Minumum cost for increasing altitude
         heuristic += std::max(0, v.z() - t.z());                // Minumum cost for decreasing altitude
+        // if (isNearWall(v)) {
+        //   heuristic -= 10;
+        // }
+        // if (diagDistance2D(v, t) < minDistHeuristic) {
+        //   heuristic -= 20;
+        // }
         double overestimatedHeuristic = newDist + overEstimateFactor * heuristic;
         pq.push(std::make_pair(v, overestimatedHeuristic));
       }
@@ -665,6 +700,8 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
   distance[s] = 0.0;
   int numIter = 0;
 
+  std::clock_t    startTime;
+  startTime = std::clock();
   while (!pq.empty() && numIter < maxIterations) {
     NodeDistancePair nodeDistU = pq.top(); pq.pop();
     Node u = nodeDistU.first;
@@ -707,6 +744,7 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
   if (bestGoalNode.cell != t) {
     return false;   // No path found
   }
+  printf("Average iteration time: %f ms \n", (std::clock() - startTime) / (double)(CLOCKS_PER_SEC / 1000) / numIter);
 
   // Get the path by walking from t back to s (excluding s)
   Node walker = bestGoalNode;

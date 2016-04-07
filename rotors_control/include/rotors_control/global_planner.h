@@ -205,6 +205,7 @@ class GlobalPlanner {
                                     0.08, 0.06, 0.04, 0.03, 0.02, 0.01};
   
   std::vector<Cell> flowDirections {Cell(1,0,0), Cell(-1,0,0), Cell(0,1,0), Cell(0,-1,0), Cell(0,0,1), Cell(0,0,-1)};
+  std::vector<Cell> diagonalDirections {Cell(1,1,0), Cell(-1,1,0), Cell(1,-1,0), Cell(-1,-1,0)};
 
   std::set<Cell> occupied;
   std::unordered_map<Cell, double, HashCell> occProb;
@@ -222,14 +223,16 @@ class GlobalPlanner {
   int maxHeight = 12;
   double maxPathProb = -1.0;
   double maxBailProb = 1.0;
+  double maxCellRisk = 15.0;
   double inf = std::numeric_limits<double>::infinity();
   int maxIterations = 2000;
   int lastIterations = 0;
+  std::vector<Cell> lastPath;
   double lastPathCost = 0.0;
   PathInfo lastPathInfo;
   double smoothFactor = 1.0;
-  double riskFactor = 20.0;
-  double neighborRiskFlow = 0.5;
+  double riskFactor = 30.0;
+  double neighborRiskFlow = 1.0;
   double explorePenalty = 0.015;
   double upCost = 3.0;
   double downCost = 1.0;
@@ -244,6 +247,7 @@ class GlobalPlanner {
   bool updateFullOctomap(const octomap_msgs::Octomap & msg);
   void increaseResolution(double minDist, double minRot, double minTime);
   void truncatePath();
+  bool isNearWall(const Cell & cell);
   void getOpenNeighbors(const Cell & cell, std::vector<CellDistancePair> & neighbors) const;
 
   double getEdgeDist(const Cell & u, const Cell & v);
