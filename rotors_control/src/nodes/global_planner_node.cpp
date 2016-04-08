@@ -48,6 +48,7 @@ GlobalPlannerNode::GlobalPlannerNode() {
   cmd_octomap_full_sub_ = nh.subscribe("/octomap_full", 1, &GlobalPlannerNode::OctomapFullCallback, this);
   cmd_ground_truth_sub_ = nh.subscribe("/mavros/local_position/pose", 1,&GlobalPlannerNode::PositionCallback, this);
   cmd_clicked_point_sub_ = nh.subscribe("/clicked_point", 1,&GlobalPlannerNode::ClickedPointCallback, this);
+  laser_sensor_sub_ = nh.subscribe("/scan", 1,&GlobalPlannerNode::LaserSensorCallback, this);
 
   cmd_global_path_pub_ = nh.advertise<nav_msgs::Path>("/global_path", 10);
   cmd_explored_cells_pub_ = nh.advertise<visualization_msgs::MarkerArray>("/explored_cells", 10);
@@ -88,6 +89,21 @@ void GlobalPlannerNode::ClickedPointCallback(
     const geometry_msgs::PointStamped& msg) {
 
   SetNewGoal(Cell(msg.point.x, msg.point.y, 1.5));
+}
+
+
+void GlobalPlannerNode::LaserSensorCallback(const sensor_msgs::LaserScan& msg) {
+  double minRange = msg.range_max;
+  for (double range : msg.ranges) {
+    minRange = range < msg.range_min ? minRange : std::min(minRange, range);
+  }
+  if (!global_planner.goingBack && minRange < 0.5) {
+    ROS_INFO("CHRASH!!! Distance to obstacle: %2.2f\n\n\n", minRange);
+    if (global_planner.pathBack.size() > 3) {
+      global_planner.goBack();
+      PublishPath();
+    }
+  }
 }
 
 void GlobalPlannerNode::OctomapFullCallback(

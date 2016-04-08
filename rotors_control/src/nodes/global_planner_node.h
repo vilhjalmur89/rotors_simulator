@@ -32,6 +32,7 @@
 #include <mav_msgs/eigen_mav_msgs.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
+#include <sensor_msgs/LaserScan.h>
 #include <std_msgs/ColorRGBA.h>
 #include <nav_msgs/Path.h>
 #include <nav_msgs/Odometry.h>
@@ -66,6 +67,7 @@ class GlobalPlannerNode {
   ros::Subscriber cmd_octomap_full_sub_;
   ros::Subscriber cmd_ground_truth_sub_;
   ros::Subscriber cmd_clicked_point_sub_;
+  ros::Subscriber laser_sensor_sub_;
 
   // Publishers
   // ros::Publisher cmd_multi_dof_joint_trajectory_pub_;
@@ -82,6 +84,7 @@ class GlobalPlannerNode {
   void SetNewGoal(Cell goal);
   void PositionCallback(const geometry_msgs::PoseStamped& msg);
   void ClickedPointCallback(const geometry_msgs::PointStamped& msg);
+  void LaserSensorCallback(const sensor_msgs::LaserScan& msg);
   void OctomapCallback(const visualization_msgs::MarkerArray& msg);
   void OctomapFullCallback(const octomap_msgs::Octomap& msg);
 

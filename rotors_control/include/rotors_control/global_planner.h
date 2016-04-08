@@ -217,13 +217,13 @@ class GlobalPlanner {
   geometry_msgs::Point currPos;
   double currYaw;
   Cell goalPos = Cell(0, 0, 3);
-  bool goingBack = false;
+  bool goingBack = true;    // we start by just finding the start position
   double overEstimateFactor = 4.0;
   int minHeight = 1;
   int maxHeight = 12;
   double maxPathProb = -1.0;
   double maxBailProb = 1.0;
-  double maxCellRisk = 15.0;
+  double maxCellRisk = 10.0;
   double inf = std::numeric_limits<double>::infinity();
   int maxIterations = 2000;
   int lastIterations = 0;

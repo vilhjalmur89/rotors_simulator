@@ -30,5 +30,11 @@
   <!-- Instantiate depth camera -->
   <xacro:depth_camera parent_link="base_link">
   </xacro:depth_camera>
+
+    <!-- Included laser URDF File -->
+  <xacro:include filename="$(find rotors_description)/urdf/laser_sensor_base.xacro" />
+  <!-- Instantiate laser laser -->
+  <xacro:laser_sensor parent_link="base_link">
+  </xacro:laser_sensor>
 </robot>
 

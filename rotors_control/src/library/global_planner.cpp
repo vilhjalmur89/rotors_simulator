@@ -101,6 +101,22 @@ void GlobalPlanner::setGoal(const Cell & goal) {
   goalIsBlocked = false;
 }
 
+void GlobalPlanner::goBack() {
+  ROS_INFO("  GO BACK ");
+  goingBack = true;
+  std::vector<Cell> newPath = pathBack;
+  std::reverse(newPath.begin(), newPath.end());
+
+  // Follow the path back until the risk is low, then a new mission will be started
+  for (int i=1; i < newPath.size()-1; ++i){
+    if (i > 5 && getRisk(newPath[i]) < riskFactor * 0.05) {
+      newPath.resize(i+1);
+      break;
+    }    
+  }
+  pathToWaypoints(newPath);
+}
+
 bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
   // Returns false iff current path has an obstacle
   // Going through the octomap can take more than 50 ms for 100m x 100m explored map 
@@ -427,21 +443,10 @@ void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
   }
   Cell lastPoint = path[path.size()-1];   // Last point has the same yaw as the previous point
   waypoints.push_back(WaypointWithTime(0, lastPoint.x()+0.5, lastPoint.y()+0.5, lastPoint.z()+0.5, lastYaw));
+  goalPos = lastPoint;
 
   // increaseResolution(2.0, 10, 1000);
   // increaseResolution(0.3, 0.05, 0.1 * kNanoSecondsInSecond);
-}
-
-void GlobalPlanner::goBack() {
-  ROS_INFO("  GO BACK REJECTED");
-  return;  
-  goingBack = true;
-  std::vector<Cell> path;
-  for (int i=pathBack.size()-1; i >= 0; i -= 2){
-    // Filter every other cell for a smooth path
-    path.push_back(pathBack[i]);
-  }
-  pathToWaypoints(path);
 }
 
 
