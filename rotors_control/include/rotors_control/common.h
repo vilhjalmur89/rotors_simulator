@@ -118,6 +118,12 @@ bool hasSameYawAndAltitude(const geometry_msgs::Pose& msg1,
       && msg1.position.z == msg2.position.z;
 }
 
+double posterior(double p, double prior) {
+  // p and prior are independent measurements of the same event
+  double isObst = p * prior;
+  double isNotObst = (1-p) * (1-prior);
+  return isObst / (isObst + isNotObst);
+}
 
 
 }

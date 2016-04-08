@@ -320,7 +320,8 @@ double GlobalPlanner::getRisk(const Cell & cell){
   }
 
   double prior = heightPrior[floor(cell.z())];
-  return risk * prior;
+  // return posterior(risk, prior);     // Needs tuning
+  return prior * risk;      
 }
 
 double GlobalPlanner::getTurnSmoothness(const Node & u, const Node & v) {
