@@ -78,9 +78,11 @@ void GlobalPlannerNode::PositionCallback(
   double distToGoal = global_planner.goalPos.manhattanDist(global_planner.currPos.x, global_planner.currPos.y, global_planner.currPos.z);
   if (fileGoals.size() > 0 && (distToGoal < 1.5 || global_planner.goalIsBlocked)) {
     // If there is another goal and we are either at current goal or it is blocked, we set a new goal
+    if (!global_planner.goalIsBlocked) {
+      ROS_INFO("Reached current goal %s, %d goals left\n\n", global_planner.goalPos.asString().c_str(), (int) fileGoals.size());
+    }
     Cell newGoal = fileGoals[0];
     fileGoals.erase(fileGoals.begin());
-    ROS_INFO("Reached current goal, %d goals left\n\n", (int) fileGoals.size());
     SetNewGoal(newGoal);
   }
 }
@@ -183,7 +185,7 @@ void GlobalPlannerNode::PublishExploredCells() {
 
     // Just a hack to get the (almost) color spectrum depending on height
     // h=1 -> blue    h=3 -> green  h=5 -> red
-    double h = (it->z()-1.0) / 5.0;
+    double h = (it->z()-1.0) / 7.0;
     marker.color.r = h;
     marker.color.g = 1.0 - 2.0 * std::abs(h - 0.5);
     marker.color.b = 1.0 - h;

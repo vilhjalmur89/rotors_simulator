@@ -203,6 +203,8 @@ class GlobalPlanner {
   // octomap::OcTree* octree;
   std::vector<double> heightPrior { 1.0, 0.67, 0.5, 0.33, 0.25, 0.17, 0.13,
                                     0.08, 0.06, 0.04, 0.03, 0.02, 0.01};
+  // Needed to quickly estimate the risk of vertical movement
+  std::vector<double> accumulatedHeightPrior; // accumulatedHeightPrior[i] = sum(heightPrior[0:i])
   
   std::vector<Cell> flowDirections {Cell(1,0,0), Cell(-1,0,0), Cell(0,1,0), Cell(0,-1,0), Cell(0,0,1), Cell(0,0,-1)};
   std::vector<Cell> diagonalDirections {Cell(1,1,0), Cell(-1,1,0), Cell(1,-1,0), Cell(-1,-1,0)};
@@ -242,6 +244,7 @@ class GlobalPlanner {
   GlobalPlanner();
   ~GlobalPlanner();
 
+  void calculateAccumulatedHeightPrior();
   void setPose(const geometry_msgs::Point & newPos, double newYaw);
   void setGoal(const Cell & goal);
   bool updateFullOctomap(const octomap_msgs::Octomap & msg);

@@ -82,8 +82,19 @@ double diagDistance2D(const Cell & a, const Cell & b) {
 
 
 
-GlobalPlanner::GlobalPlanner()  {}
+GlobalPlanner::GlobalPlanner()  {
+  calculateAccumulatedHeightPrior();
+}
 GlobalPlanner::~GlobalPlanner() {}
+
+
+void GlobalPlanner::calculateAccumulatedHeightPrior() {
+  double sum = 0.0;
+  for (double p : heightPrior) {
+    sum += p;
+    accumulatedHeightPrior.push_back(sum);
+  }
+}
 
 void GlobalPlanner::setPose(const geometry_msgs::Point & newPos, double newYaw) {
   currPos = newPos;
@@ -109,7 +120,7 @@ void GlobalPlanner::goBack() {
 
   // Follow the path back until the risk is low, then a new mission will be started
   for (int i=1; i < newPath.size()-1; ++i){
-    if (i > 5 && getRisk(newPath[i]) < riskFactor * 0.05) {
+    if (i > 5 && getRisk(newPath[i]) < 0.1) {
       newPath.resize(i+1);
       break;
     }    
@@ -136,6 +147,7 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
         if (cellProb > maxBailProb && pathCells.find(cell) != pathCells.end()) {
           // Cell is on path and is risky enough to abort mission
           pathIsBlocked = true;
+          printf("BAD CELL: %s \n", cell.asString().c_str());
         }
       }
       if (it.getSize() > 1) {
@@ -363,7 +375,7 @@ double GlobalPlanner::riskHeuristic(const Cell & u, const Cell & goal) {
   double unexploredRisk = (1.0 + 6.0 * neighborRiskFlow) * explorePenalty * riskFactor;  
   double xyDist = diagDistance2D(u, goal) - 1.0;   // XY distance excluding the goal cell
   double xyRisk = xyDist * unexploredRisk * heightPrior[u.z()];
-  double zRisk = (std::abs(u.z() - goal.z())) * unexploredRisk * std::min(heightPrior[u.z()], heightPrior[goal.z()]);
+  double zRisk = std::abs(accumulatedHeightPrior[u.z()] - accumulatedHeightPrior[goal.z()]) * unexploredRisk;
   // TODO: instead of subtracting 1 from the xyDist, subtract 1 from the combined xy and z dist
   double goalRisk = getRisk(goal) * riskFactor;
   return xyRisk + zRisk + goalRisk;
@@ -546,7 +558,7 @@ void GlobalPlanner::printPathStats(const std::vector<Cell> & path,
       double angDiff2 = angleToRange(angDiff);   
       double angDiff3 = std::fabs(angDiff2);       // positive angle difference
       double num45DegTurns = std::ceil(angDiff3 / (M_PI/4));    // Minimum number of 45-turns to goal
-      printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f \n", angU, angGoal, angDiff3, num45DegTurns);
+      printf("\t|| \t%3.2f \t%3.2f \t%3.2f \t%3.2f \t%3.2f \t%3.2f \n", angU, angGoal, angDiff, angDiff2, angDiff3, num45DegTurns);
       ROS_INFO("WTF? \n %f %f \n\n\n\n\n\n\n\n\n\n\n\n", angleToRange(5.5), angleToRange(-5.5));
     }
 
@@ -645,6 +657,8 @@ bool GlobalPlanner::FindPathOld(std::vector<Cell> & path, const Cell & s,
   int numIter = 0;
   double minDistHeuristic = inf;
 
+  std::clock_t    startTime;
+  startTime = std::clock();
   // Search until all reachable cells have been found, run out of time or t is found,
   while (!pq.empty() && numIter < maxIterations) {
     CellDistancePair cellDistU = pq.top(); pq.pop();
@@ -692,6 +706,7 @@ bool GlobalPlanner::FindPathOld(std::vector<Cell> & path, const Cell & s,
       }
     }
   }
+  printf("Average iteration time: %f ms \n", (std::clock() - startTime) / (double)(CLOCKS_PER_SEC / 1000) / numIter);
 
   if (seen.find(t) == seen.end()) {
     // No path found
