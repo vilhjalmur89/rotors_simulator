@@ -30,6 +30,7 @@
 
 #include <queue>            // std::priority_queue
 #include <unordered_map>  
+#include <unordered_set>  
 #include <algorithm>        // std::reverse
 #include <math.h>           // abs
 #include <tuple>
@@ -209,8 +210,11 @@ class GlobalPlanner {
   std::vector<Cell> flowDirections {Cell(1,0,0), Cell(-1,0,0), Cell(0,1,0), Cell(0,-1,0), Cell(0,0,1), Cell(0,0,-1)};
   std::vector<Cell> diagonalDirections {Cell(1,1,0), Cell(-1,1,0), Cell(1,-1,0), Cell(-1,-1,0)};
 
-  std::set<Cell> occupied;
   std::unordered_map<Cell, double, HashCell> occProb;
+  std::unordered_map<Cell, double, HashCell> riskCache;
+  
+  // TODO: use unordered_set
+  std::set<Cell> occupied;
   std::set<Cell> seen;        // Set of cells that were explored in last search
   std::set<Cell> pathCells;   // Set of cells that are on current path, and cannot be blocked
   std::vector<WaypointWithTime> waypoints;    // TODO: remove and use pathMsg

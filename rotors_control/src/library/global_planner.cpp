@@ -120,7 +120,7 @@ void GlobalPlanner::goBack() {
 
   // Follow the path back until the risk is low, then a new mission will be started
   for (int i=1; i < newPath.size()-1; ++i){
-    if (i > 5 && getRisk(newPath[i]) < 0.1) {
+    if (i > 5 && getRisk(newPath[i]) < 0.5) {
       newPath.resize(i+1);
       break;
     }    
@@ -134,6 +134,7 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
 
   bool pathIsBlocked = false;
   occupied.clear();
+  riskCache.clear();
   octomap::AbstractOcTree* tree = octomap_msgs::msgToMap(msg);
   octomap::OcTree* octree = dynamic_cast<octomap::OcTree*>(tree);
   if (tree) {
@@ -232,6 +233,7 @@ bool GlobalPlanner::isNearWall(const Cell & cell) {
   return false;
 }
 
+// Return just the cells
 void GlobalPlanner::getOpenNeighbors(const Cell & cell, 
                                      std::vector<CellDistancePair> & neighbors,
                                      bool is3D) const {
@@ -326,6 +328,10 @@ double GlobalPlanner::getRisk(const Cell & cell){
   // Computes the risk from the cell, its neighbors and the prior
   // TODO: is vertical movement with risk worse than horizontal?
 
+  if (riskCache.find(cell) != riskCache.end()) {
+    return riskCache[cell];
+  }
+
   double risk = getSingleCellRisk(cell);
 
   for (Cell direction : flowDirections) {
@@ -334,8 +340,11 @@ double GlobalPlanner::getRisk(const Cell & cell){
   }
 
   double prior = heightPrior[floor(cell.z())];
-  // return posterior(risk, prior);     // Needs tuning
-  return prior * risk;      
+  double totalRisk = prior * risk;
+  // double totalRisk = posterior(risk, prior);     // Needs tuning
+  
+  riskCache[cell] = totalRisk;  
+  return totalRisk;      
 }
 
 double GlobalPlanner::getTurnSmoothness(const Node & u, const Node & v) {
@@ -361,8 +370,8 @@ double GlobalPlanner::getTurnSmoothness(const Node & u, const Node & v) {
 
 double GlobalPlanner::getEdgeCost(const Node & u, const Node & v) {
   double distCost = getEdgeDist(u.cell, v.cell);
-  double riskCost = riskFactor * getRisk(v.cell);
   double smoothCost = smoothFactor * getTurnSmoothness(u, v);
+  double riskCost = riskFactor * getRisk(v.cell);
   return distCost + riskCost + smoothCost;
 }
 
@@ -578,13 +587,13 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   ROS_INFO("Planning a path from %s to %s", s.asString().c_str(), t.asString().c_str());
   bool foundPath = false;
   double bestPathCost = inf;
-  overEstimateFactor = 64.0;
+  overEstimateFactor = 10.0;
   maxIterations = 2000;
 
-  while (overEstimateFactor > 1.01 && maxIterations > lastIterations) {
+  while (overEstimateFactor > 1.005 && maxIterations > lastIterations) {
     std::vector<Cell> newPath;
     bool foundNewPath;
-    if (overEstimateFactor > 2) {
+    if (overEstimateFactor > 3) {
       foundNewPath = FindPathOld(newPath, s, t, true);  // No need to search with smoothness
     } 
     else {
@@ -604,7 +613,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
       break;
     }
       maxIterations -= lastIterations;
-      overEstimateFactor = (overEstimateFactor - 1.0) / 4.0 + 1.0;
+      overEstimateFactor = (overEstimateFactor - 1.0) / 5.0 + 1.0;
   }
 
   // Last resort, try 2d search at maxHeight
@@ -614,7 +623,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   }
 
   if (foundPath) {
-    lastPathInfo = getPathInfo(path, Node(s, parent));;
+    lastPathInfo = getPathInfo(path, Node(s, parent));
     lastPath = path;
   }
 
@@ -767,10 +776,7 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
     for (auto cellDistV : neighbors) {
       Cell vCell = cellDistV.first;
       Node v = Node(vCell, u.cell);
-      double distCost = cellDistV.second;
-      double riskCost = riskFactor * getRisk(v.cell);
-      double smoothCost = smoothFactor * getTurnSmoothness(u, v);
-      double newDist = distance[u] + distCost +  riskCost + smoothCost;     // Use getEdgeCost
+      double newDist = distance[u] + getEdgeCost(u, v); 
       double oldDist = inf;
       if (distance.find(v) != distance.end()) {
         oldDist = distance[v];
