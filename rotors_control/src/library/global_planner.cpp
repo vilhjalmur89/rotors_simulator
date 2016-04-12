@@ -220,7 +220,9 @@ bool GlobalPlanner::isNearWall(const Cell & cell) {
   return false;
 }
 
-void GlobalPlanner::getOpenNeighbors(const Cell & cell, std::vector<CellDistancePair> & neighbors) const {
+void GlobalPlanner::getOpenNeighbors(const Cell & cell, 
+                                     std::vector<CellDistancePair> & neighbors,
+                                     bool is3D) const {
   // Fill neighbors with the 8 horizontal and 2 vertical non-occupied neigbors
   // It's long because it uses the minimum number of 'if's 
   // TODO: Try using weights instead of 'if's
@@ -275,10 +277,10 @@ void GlobalPlanner::getOpenNeighbors(const Cell & cell, std::vector<CellDistance
   }
 
   // Vertical neighbors
-  if (z < maxHeight && upOpen) {
+  if (is3D && z < maxHeight && upOpen) {
     neighbors.push_back(std::make_pair(up, upCost));
   }
-  if (z > minHeight && downOpen) {
+  if (is3D && z > minHeight && downOpen) {
     neighbors.push_back(std::make_pair(down, downCost));
   }
 }
@@ -571,7 +573,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
     std::vector<Cell> newPath;
     bool foundNewPath;
     if (overEstimateFactor > 2) {
-      foundNewPath = FindPathOld(newPath, s, t);  // No need to search with smoothness
+      foundNewPath = FindPathOld(newPath, s, t, true);  // No need to search with smoothness
     } 
     else {
       foundNewPath = FindSmoothPath(newPath, s, t, parent);
@@ -582,8 +584,6 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
       printf("(cost: %2.2f, dist: %2.2f, risk: %2.2f, smooth: %2.2f) \n", pathInfo.cost, pathInfo.dist, pathInfo.risk, pathInfo.smoothness);
       if (pathInfo.cost < bestPathCost) {
         bestPathCost = pathInfo.cost;
-        lastPathInfo = pathInfo;
-        lastPath = newPath;
         path = newPath;
         foundPath = true;
       }
@@ -595,19 +595,44 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
       overEstimateFactor = (overEstimateFactor - 1.0) / 4.0 + 1.0;
   }
 
+  // Last resort, try 2d search at maxHeight
+  if (!foundPath) {
+    maxIterations = 1000;
+    foundPath = Find2DPath(path, s, t);
+  }
+
+  if (foundPath) {
+    lastPathInfo = getPathInfo(path, Node(s, parent));;
+    lastPath = path;
+  }
+
   return foundPath;
 }
 
-// Search very greedily without smoothness to get a path as quickly as possible
-bool GlobalPlanner::FindGreedyPath(std::vector<Cell> & path, const Cell & s, Cell t) {
-  double oldOverEstimateFactor = overEstimateFactor;
-  overEstimateFactor = 100;
-  bool foundPath = FindPathOld(path, s, t);
-  overEstimateFactor = oldOverEstimateFactor;
-  return foundPath;
+bool GlobalPlanner::Find2DPath(std::vector<Cell> & path, const Cell & s, Cell t) {
+  std::vector<Cell> upPath;
+  bool foundUpPath = FindPathOld(upPath, s, Cell(s.x(), s.y(), maxHeight), true);
+  std::vector<Cell> verticalPath;
+  bool foundVerticalPath = FindPathOld(verticalPath, Cell(s.x(), s.y(), maxHeight), 
+                                       Cell(t.x(), t.y(), maxHeight), false);
+  std::vector<Cell> downPath;
+  bool foundDownPath = FindPathOld(downPath, Cell(t.x(), t.y(), maxHeight), t, true);
+
+  if (foundUpPath && foundVerticalPath && foundDownPath) {
+    path = upPath;
+    for (Cell c : verticalPath) {
+      path.push_back(c);
+    }
+    for (Cell c : downPath) {
+      path.push_back(c);
+    }
+    return true;
+  }
+  return false;
 }
 
-bool GlobalPlanner::FindPathOld(std::vector<Cell> & path, const Cell & s, Cell t) {
+bool GlobalPlanner::FindPathOld(std::vector<Cell> & path, const Cell & s, 
+                                const Cell t, bool is3D) {
   // A* to find a path from currPos to goalPos, true iff it found a path
 
   // Initialize containers
@@ -635,7 +660,7 @@ bool GlobalPlanner::FindPathOld(std::vector<Cell> & path, const Cell & s, Cell t
     }
 
     std::vector<CellDistancePair> neighbors;
-    getOpenNeighbors(u, neighbors);
+    getOpenNeighbors(u, neighbors, is3D);
     for (auto cellDistV : neighbors) {
       Cell v = cellDistV.first;
       double costOfEdge = cellDistV.second;
@@ -723,7 +748,7 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
     }
 
     std::vector<CellDistancePair> neighbors;
-    getOpenNeighbors(u.cell, neighbors);
+    getOpenNeighbors(u.cell, neighbors, true);
     for (auto cellDistV : neighbors) {
       Cell vCell = cellDistV.first;
       Node v = Node(vCell, u.cell);

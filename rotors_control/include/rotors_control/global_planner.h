@@ -248,7 +248,9 @@ class GlobalPlanner {
   void increaseResolution(double minDist, double minRot, double minTime);
   void truncatePath();
   bool isNearWall(const Cell & cell);
-  void getOpenNeighbors(const Cell & cell, std::vector<CellDistancePair> & neighbors) const;
+  void getOpenNeighbors(const Cell & cell, 
+                        std::vector<CellDistancePair> & neighbors,
+                        bool is3D) const;
 
   double getEdgeDist(const Cell & u, const Cell & v);
   double getSingleCellRisk(const Cell & cell);
@@ -270,8 +272,8 @@ class GlobalPlanner {
                                    const Cell goal, double totalDistance, std::map<Node, double> & distance);
   
   bool FindPath(std::vector<Cell> & path);
-  bool FindGreedyPath(std::vector<Cell> & path, const Cell & s, Cell t);
-  bool FindPathOld(std::vector<Cell> & path, const Cell & s, Cell t);
+  bool Find2DPath(std::vector<Cell> & path, const Cell & s, Cell t);
+  bool FindPathOld(std::vector<Cell> & path, const Cell & s, const Cell t, bool is3D);
   bool FindSmoothPath(std::vector<Cell> & path, const Cell & s, const Cell & t, const Cell & parent);
   bool getGlobalPath();
 
