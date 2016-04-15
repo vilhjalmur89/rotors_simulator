@@ -59,6 +59,11 @@ class GlobalPlannerNode {
   WaypointWithTime goalCell;
   geometry_msgs::Point goalPoint;
   std::string namespace_;
+  nav_msgs::Path actualPath;
+
+  int numOctomapMessages = 0;
+  int numPositionMessages = 0;
+
 
 
   // Subscribers
@@ -72,6 +77,7 @@ class GlobalPlannerNode {
   // Publishers
   // ros::Publisher cmd_multi_dof_joint_trajectory_pub_;
   ros::Publisher cmd_global_path_pub_;
+  ros::Publisher cmd_actual_path_pub_;
   ros::Publisher cmd_explored_cells_pub_;
 
   // // lee_controler_publisher

@@ -122,6 +122,7 @@ void GlobalPlanner::goBack() {
   for (int i=1; i < newPath.size()-1; ++i){
     if (i > 5 && getRisk(newPath[i]) < 0.5) {
       newPath.resize(i+1);
+      pathBack.resize(pathBack.size()-i-2);
       break;
     }    
   }
@@ -149,6 +150,7 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
           // Cell is on path and is risky enough to abort mission
           pathIsBlocked = true;
           printf("BAD CELL: %s \n", cell.asString().c_str());
+          pathCells.clear();
         }
       }
       if (it.getSize() > 1) {
@@ -161,7 +163,7 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
 
   if (lastPath.size() > 0) {
     PathInfo newInfo = getPathInfo(lastPath, Node(lastPath[0], lastPath[0]));
-    if (newInfo.risk > lastPathInfo.risk + 10) {
+    if (newInfo.risk > lastPathInfo.risk + 30) {
       pathIsBlocked = true;
       printf("Risk increase");
     }
@@ -321,7 +323,7 @@ double GlobalPlanner::getSingleCellRisk(const Cell & cell){
   if (occProb.find(cell) != occProb.end()) {
     return octomap::probability(occProb[cell]);   // If the cell has been seen
   }
-  return explorePenalty;    // Fixed risk for unexplored cells
+  return explorePenalty * heightPrior[cell.z()];    // Fixed risk for unexplored cells
 }
 
 double GlobalPlanner::getRisk(const Cell & cell){
@@ -340,8 +342,8 @@ double GlobalPlanner::getRisk(const Cell & cell){
   }
 
   double prior = heightPrior[floor(cell.z())];
-  double totalRisk = prior * risk;
-  // double totalRisk = posterior(risk, prior);     // Needs tuning
+  double totalRisk = risk;
+  // totalRisk = posterior(risk, prior);     // Needs tuning
   
   riskCache[cell] = totalRisk;  
   return totalRisk;      
@@ -584,13 +586,14 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   Cell s = Cell(currPos);
   Cell t = goalPos;
   Cell parent = s.getNeighborFromYaw(currYaw + M_PI); // The cell behind the start cell
+  s = s.getNeighborFromYaw(currYaw);             // Plan from the cell in front
   ROS_INFO("Planning a path from %s to %s", s.asString().c_str(), t.asString().c_str());
   bool foundPath = false;
   double bestPathCost = inf;
-  overEstimateFactor = 10.0;
+  overEstimateFactor = 8.0;
   maxIterations = 2000;
 
-  while (overEstimateFactor > 1.005 && maxIterations > lastIterations) {
+  while (overEstimateFactor > 1.05 && maxIterations > lastIterations) {
     std::vector<Cell> newPath;
     bool foundNewPath;
     if (overEstimateFactor > 3) {
@@ -633,11 +636,11 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
 bool GlobalPlanner::Find2DPath(std::vector<Cell> & path, const Cell & s, Cell t) {
   std::vector<Cell> upPath;
   bool foundUpPath = FindPathOld(upPath, s, Cell(s.x(), s.y(), maxHeight), true);
+  std::vector<Cell> downPath;
+  bool foundDownPath = FindPathOld(downPath, Cell(t.x(), t.y(), maxHeight), t, true);
   std::vector<Cell> verticalPath;
   bool foundVerticalPath = FindPathOld(verticalPath, Cell(s.x(), s.y(), maxHeight), 
                                        Cell(t.x(), t.y(), maxHeight), false);
-  std::vector<Cell> downPath;
-  bool foundDownPath = FindPathOld(downPath, Cell(t.x(), t.y(), maxHeight), t, true);
 
   if (foundUpPath && foundVerticalPath && foundDownPath) {
     path = upPath;
@@ -826,12 +829,12 @@ bool GlobalPlanner::getGlobalPath() {
     goalIsBlocked = true;
     return false;
   }
-  else if (occupied.find(s) != occupied.end()) {
-    // If current position is occupied the way back is published
-    ROS_INFO("Current position is occupied, going back.");
-    goBack();
-    return true;
-  }
+  // else if (occupied.find(s) != occupied.end()) {
+  //   // If current position is occupied the way back is published
+  //   ROS_INFO("Current position is occupied, going back.");
+  //   goBack();
+  //   return true;
+  // }
   else {
     // Both current position and goal are free, try to find a path
     std::vector<Cell> path;

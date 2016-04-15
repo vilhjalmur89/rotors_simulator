@@ -51,7 +51,10 @@ GlobalPlannerNode::GlobalPlannerNode() {
   laser_sensor_sub_ = nh.subscribe("/scan", 1,&GlobalPlannerNode::LaserSensorCallback, this);
 
   cmd_global_path_pub_ = nh.advertise<nav_msgs::Path>("/global_path", 10);
+  cmd_actual_path_pub_ = nh.advertise<nav_msgs::Path>("/actual_path", 10);
   cmd_explored_cells_pub_ = nh.advertise<visualization_msgs::MarkerArray>("/explored_cells", 10);
+
+  actualPath.header.frame_id="/world";
 }
 
 GlobalPlannerNode::~GlobalPlannerNode() { }
@@ -85,6 +88,13 @@ void GlobalPlannerNode::PositionCallback(
     fileGoals.erase(fileGoals.begin());
     SetNewGoal(newGoal);
   }
+
+  if (numPositionMessages++ % 100 == 0) {
+    rot_msg.header.frame_id = "/world";
+    actualPath.poses.push_back(rot_msg);
+    ROS_INFO("Actual travel distance: %2.2f", pathLength(actualPath));
+    cmd_actual_path_pub_.publish(actualPath);
+  }
 }
 
 void GlobalPlannerNode::ClickedPointCallback(
@@ -111,7 +121,7 @@ void GlobalPlannerNode::LaserSensorCallback(const sensor_msgs::LaserScan& msg) {
 void GlobalPlannerNode::OctomapFullCallback(
     const octomap_msgs::Octomap& msg) {
 
-  if (global_planner.numOctomapMessages++ % 10 > 0) {
+  if (numOctomapMessages++ % 10 > 0) {
     return;     // We get too many of those messages. Only process 1/10 of them
   }
 
@@ -190,6 +200,9 @@ void GlobalPlannerNode::PublishExploredCells() {
     marker.color.g = 1.0 - 2.0 * std::abs(h - 0.5);
     marker.color.b = 1.0 - h;
     marker.color.a = 1.0;
+    marker.color.r = 0.0;
+    marker.color.g = 0.8;
+    marker.color.b = 0.0;
 
     msg.markers.push_back(marker);
   }
