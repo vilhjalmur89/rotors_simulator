@@ -25,6 +25,9 @@
 #include <mav_msgs/conversions.h>
 #include <nav_msgs/Odometry.h>
 
+#include <nav_msgs/Path.h>
+ 
+
 #include "rotors_control/parameters.h"
 
 namespace rotors_control {
@@ -102,6 +105,14 @@ void vectorFromSkewMatrix(Eigen::Matrix3d& skew_matrix, Eigen::Vector3d* vector)
 
 
 // GLOBAL PLANNER
+double distance(geometry_msgs::PoseStamped & a, geometry_msgs::PoseStamped & b) {
+  double diffX = a.pose.position.x - b.pose.position.x;
+  double diffY = a.pose.position.y - b.pose.position.y;
+  double diffZ = a.pose.position.z - b.pose.position.z;
+  return diffX*diffX + diffY*diffY + diffZ*diffZ;
+}
+
+
 double angleToRange(double angle) {
   // returns the angle in the range [-pi, pi]
   angle += M_PI;
@@ -122,7 +133,16 @@ double posterior(double p, double prior) {
   // p and prior are independent measurements of the same event
   double isObst = p * prior;
   double isNotObst = (1-p) * (1-prior);
-  return isObst / (isObst + isNotObst);
+  return isObst / (isObst + isNotObst+0.0001);
+}
+
+double pathLength(nav_msgs::Path & path) {
+  // p and prior are independent measurements of the same event
+  double totalDist = 0.0;
+  for (int i=1; i < path.poses.size(); ++i) {
+    totalDist += distance(path.poses[i-1], path.poses[i]);
+  }
+  return totalDist;
 }
 
 
