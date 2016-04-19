@@ -229,7 +229,7 @@ class GlobalPlanner {
   bool goingBack = true;    // we start by just finding the start position
   double overEstimateFactor = 4.0;
   int minHeight = 1;
-  int maxHeight = 12;
+  int maxHeight = 4;
   double maxPathProb = -1.0;
   double maxBailProb = 1.0;
   double maxCellRisk = 10.0;
@@ -240,7 +240,7 @@ class GlobalPlanner {
   double lastPathCost = 0.0;
   PathInfo lastPathInfo;
   double smoothFactor = 1.0;
-  double riskFactor = 10.0;
+  double riskFactor = 20.0;
   double neighborRiskFlow = 1.0;
   double explorePenalty = 0.015;
   double upCost = 3.0;

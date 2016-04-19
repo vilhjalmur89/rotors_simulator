@@ -89,7 +89,7 @@ void GlobalPlannerNode::PositionCallback(
     SetNewGoal(newGoal);
   }
 
-  if (numPositionMessages++ % 100 == 0) {
+  if (numPositionMessages++ % 50 == 0) {
     rot_msg.header.frame_id = "/world";
     actualPath.poses.push_back(rot_msg);
     ROS_INFO("Actual travel distance: %2.2f", pathLength(actualPath));
