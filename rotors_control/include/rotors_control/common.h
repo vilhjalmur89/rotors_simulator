@@ -109,7 +109,7 @@ double distance(geometry_msgs::PoseStamped & a, geometry_msgs::PoseStamped & b) 
   double diffX = a.pose.position.x - b.pose.position.x;
   double diffY = a.pose.position.y - b.pose.position.y;
   double diffZ = a.pose.position.z - b.pose.position.z;
-  return diffX*diffX + diffY*diffY + diffZ*diffZ;
+  return sqrt(diffX*diffX + diffY*diffY + diffZ*diffZ);
 }
 
 
@@ -143,6 +143,41 @@ double pathLength(nav_msgs::Path & path) {
     totalDist += distance(path.poses[i-1], path.poses[i]);
   }
   return totalDist;
+}
+
+double pathKineticEnergy(nav_msgs::Path & path) {
+  // p and prior are independent measurements of the same event
+  if (path.poses.size() < 3) {
+    return 0.0;
+  }
+  std::vector<double> velX;
+  std::vector<double> velY;
+  std::vector<double> velZ;
+  for (int i=1; i < path.poses.size(); ++i) {
+    velX.push_back(path.poses[i].pose.position.x - path.poses[i-1].pose.position.x);
+    velY.push_back(path.poses[i].pose.position.y - path.poses[i-1].pose.position.y);
+    velZ.push_back(path.poses[i].pose.position.z - path.poses[i-1].pose.position.z);
+  }
+
+  double totalEnergy = 0.0;
+  for (int i=1; i < velX.size(); ++i) {
+    totalEnergy += std::abs(velX[i]*velX[i] - velX[i-1]*velX[i-1]);
+    totalEnergy += std::abs(velY[i]*velY[i] - velY[i-1]*velY[i-1]);
+    totalEnergy += std::abs(velZ[i]*velZ[i] - velZ[i-1]*velZ[i-1]);
+  }
+
+  return totalEnergy;
+}
+
+double pathEnergy(nav_msgs::Path & path, double upPenalty) {
+  // p and prior are independent measurements of the same event
+  double totalEnergy = 0.0;
+  for (int i=1; i < path.poses.size(); ++i) {
+    totalEnergy += distance(path.poses[i-1], path.poses[i]);
+    double altitudeIncrease = path.poses[i].pose.position.z - path.poses[i-1].pose.position.z;
+    totalEnergy += std::max(0.0, upPenalty * altitudeIncrease);
+  }
+  return totalEnergy;
 }
 
 

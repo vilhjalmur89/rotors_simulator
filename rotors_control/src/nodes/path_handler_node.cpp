@@ -113,7 +113,7 @@ void PathHandlerNode::PositionCallback(
 
       // If we are keeping the same direction and height increase speed
       if (path.size() > std::floor(speed) && hasSameYawAndAltitude(last_msg.pose, path[std::floor(speed)].pose)) {
-        speed = std::max(2.0, speed+0.1);
+        speed = std::max(maxSpeed, speed+0.1);
       }
       else {
         speed = 1.0;

@@ -71,6 +71,7 @@ class GlobalPlannerNode {
   ros::Subscriber cmd_octomap_sub_;
   ros::Subscriber cmd_octomap_full_sub_;
   ros::Subscriber cmd_ground_truth_sub_;
+  ros::Subscriber velocity_sub_;
   ros::Subscriber cmd_clicked_point_sub_;
   ros::Subscriber laser_sensor_sub_;
 
@@ -79,6 +80,7 @@ class GlobalPlannerNode {
   ros::Publisher cmd_global_path_pub_;
   ros::Publisher cmd_actual_path_pub_;
   ros::Publisher cmd_explored_cells_pub_;
+  ros::Publisher cmd_clicked_point_pub_;
 
   // // lee_controler_publisher
   // ros::Publisher wp_pub;
@@ -88,6 +90,7 @@ class GlobalPlannerNode {
   // ros::Publisher path_handler_publisher;
 
   void SetNewGoal(Cell goal);
+  void VelocityCallback(const geometry_msgs::TwistStamped& msg);
   void PositionCallback(const geometry_msgs::PoseStamped& msg);
   void ClickedPointCallback(const geometry_msgs::PointStamped& msg);
   void LaserSensorCallback(const sensor_msgs::LaserScan& msg);

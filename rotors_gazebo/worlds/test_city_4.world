@@ -6716,7 +6716,395 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>32 -6 0 0 0 0</pose>
+      <pose>31 -40 0 0 0 0</pose>
+    </model>
+
+    <model name='House 2'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://house_2/meshes/house_2.dae</uri>
+            </mesh>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <bounce/>
+            <friction>
+              <ode/>
+            </friction>
+            <contact>
+              <ode/>
+            </contact>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <mesh>
+              <uri>model://house_2/meshes/house_2.dae</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://house_2/materials/scripts</uri>
+              <uri>model://house_2/materials/textures</uri>
+              <uri>model://house_1/materials/textures</uri>
+              <name>House_2/Diffuse</name>
+            </script>
+            <shader type='normal_map_object_space'>
+              <normal_map>model://house_1/materials/textures/House_1_Normal.png</normal_map>
+            </shader>
+          </material>
+        </visual>
+        <velocity_decay>
+          <linear>0</linear>
+          <angular>0</angular>
+        </velocity_decay>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose>20 -40 0 0 0 0</pose>
+    </model>
+
+    <model name='House 1'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://house_1/meshes/house_1.dae</uri>
+            </mesh>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <bounce/>
+            <friction>
+              <ode/>
+            </friction>
+            <contact>
+              <ode/>
+            </contact>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <mesh>
+              <uri>model://house_1/meshes/house_1.dae</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://house_1/materials/scripts</uri>
+              <uri>model://house_1/materials/textures</uri>
+              <name>House_1/Diffuse</name>
+            </script>
+            <shader type='normal_map_object_space'>
+              <normal_map>House_1_Normal.png</normal_map>
+            </shader>
+          </material>
+        </visual>
+        <velocity_decay>
+          <linear>0</linear>
+          <angular>0</angular>
+        </velocity_decay>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose>10 -40 0 0 0 0</pose>
+    </model>
+
+    <model name='House 1'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://house_1/meshes/house_1.dae</uri>
+            </mesh>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <bounce/>
+            <friction>
+              <ode/>
+            </friction>
+            <contact>
+              <ode/>
+            </contact>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <mesh>
+              <uri>model://house_1/meshes/house_1.dae</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://house_1/materials/scripts</uri>
+              <uri>model://house_1/materials/textures</uri>
+              <name>House_1/Diffuse</name>
+            </script>
+            <shader type='normal_map_object_space'>
+              <normal_map>House_1_Normal.png</normal_map>
+            </shader>
+          </material>
+        </visual>
+        <velocity_decay>
+          <linear>0</linear>
+          <angular>0</angular>
+        </velocity_decay>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose>31 -58 0 0 0 0</pose>
+    </model>
+
+    <model name='House 2'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://house_2/meshes/house_2.dae</uri>
+            </mesh>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <bounce/>
+            <friction>
+              <ode/>
+            </friction>
+            <contact>
+              <ode/>
+            </contact>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <mesh>
+              <uri>model://house_2/meshes/house_2.dae</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://house_2/materials/scripts</uri>
+              <uri>model://house_2/materials/textures</uri>
+              <uri>model://house_1/materials/textures</uri>
+              <name>House_2/Diffuse</name>
+            </script>
+            <shader type='normal_map_object_space'>
+              <normal_map>model://house_1/materials/textures/House_1_Normal.png</normal_map>
+            </shader>
+          </material>
+        </visual>
+        <velocity_decay>
+          <linear>0</linear>
+          <angular>0</angular>
+        </velocity_decay>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose>20 -59 0 0 0 0</pose>
+    </model>
+
+    <model name='House 1'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://house_1/meshes/house_1.dae</uri>
+            </mesh>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <bounce/>
+            <friction>
+              <ode/>
+            </friction>
+            <contact>
+              <ode/>
+            </contact>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <mesh>
+              <uri>model://house_1/meshes/house_1.dae</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://house_1/materials/scripts</uri>
+              <uri>model://house_1/materials/textures</uri>
+              <name>House_1/Diffuse</name>
+            </script>
+            <shader type='normal_map_object_space'>
+              <normal_map>House_1_Normal.png</normal_map>
+            </shader>
+          </material>
+        </visual>
+        <velocity_decay>
+          <linear>0</linear>
+          <angular>0</angular>
+        </velocity_decay>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose>10 -58 0 0 0 0</pose>
+    </model>
+
+    <model name='House 2'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://house_2/meshes/house_2.dae</uri>
+            </mesh>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <bounce/>
+            <friction>
+              <ode/>
+            </friction>
+            <contact>
+              <ode/>
+            </contact>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <mesh>
+              <uri>model://house_2/meshes/house_2.dae</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://house_2/materials/scripts</uri>
+              <uri>model://house_2/materials/textures</uri>
+              <uri>model://house_1/materials/textures</uri>
+              <name>House_2/Diffuse</name>
+            </script>
+            <shader type='normal_map_object_space'>
+              <normal_map>model://house_1/materials/textures/House_1_Normal.png</normal_map>
+            </shader>
+          </material>
+        </visual>
+        <velocity_decay>
+          <linear>0</linear>
+          <angular>0</angular>
+        </velocity_decay>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose>34 -50 0 0 0 1.57079632679</pose>
+    </model>
+
+    <model name='House 2'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://house_2/meshes/house_2.dae</uri>
+            </mesh>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <bounce/>
+            <friction>
+              <ode/>
+            </friction>
+            <contact>
+              <ode/>
+            </contact>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <mesh>
+              <uri>model://house_2/meshes/house_2.dae</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://house_2/materials/scripts</uri>
+              <uri>model://house_2/materials/textures</uri>
+              <uri>model://house_1/materials/textures</uri>
+              <name>House_2/Diffuse</name>
+            </script>
+            <shader type='normal_map_object_space'>
+              <normal_map>model://house_1/materials/textures/House_1_Normal.png</normal_map>
+            </shader>
+          </material>
+        </visual>
+        <velocity_decay>
+          <linear>0</linear>
+          <angular>0</angular>
+        </velocity_decay>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose>8 -50 0 0 0 1.57079632679</pose>
+    </model>
+
+    <model name='House 1'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://house_1/meshes/house_1.dae</uri>
+            </mesh>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <bounce/>
+            <friction>
+              <ode/>
+            </friction>
+            <contact>
+              <ode/>
+            </contact>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <mesh>
+              <uri>model://house_1/meshes/house_1.dae</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://house_1/materials/scripts</uri>
+              <uri>model://house_1/materials/textures</uri>
+              <name>House_1/Diffuse</name>
+            </script>
+            <shader type='normal_map_object_space'>
+              <normal_map>House_1_Normal.png</normal_map>
+            </shader>
+          </material>
+        </visual>
+        <velocity_decay>
+          <linear>0</linear>
+          <angular>0</angular>
+        </velocity_decay>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose>31 -6 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -6861,7 +7249,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>32 -25 0 0 0 0</pose>
+      <pose>31 -24 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -6910,7 +7298,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>20 -26 0 0 0 0</pose>
+      <pose>20 -25 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -6958,7 +7346,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>10 -25 0 0 0 0</pose>
+      <pose>10 -24 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -7007,7 +7395,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>35 -16 0 0 0 1.57079632679</pose>
+      <pose>34 -16 0 0 0 1.57079632679</pose>
     </model>
 
     <model name='House 2'>
@@ -7104,7 +7492,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>32 34 0 0 0 0</pose>
+      <pose>31 28 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -7153,7 +7541,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>20 34 0 0 0 0</pose>
+      <pose>20 28 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -7201,7 +7589,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>10 34 0 0 0 0</pose>
+      <pose>10 28 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -7249,7 +7637,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>32 15 0 0 0 0</pose>
+      <pose>31 10 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -7298,7 +7686,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>20 14 0 0 0 0</pose>
+      <pose>20 9 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -7346,7 +7734,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>10 15 0 0 0 0</pose>
+      <pose>10 10 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -7395,7 +7783,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>35 24 0 0 0 1.57079632679</pose>
+      <pose>34 18 0 0 0 1.57079632679</pose>
     </model>
 
     <model name='House 2'>
@@ -7444,7 +7832,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>8 24 0 0 0 1.57079632679</pose>
+      <pose>8 18 0 0 0 1.57079632679</pose>
     </model>
 
     <model name='House 1'>
@@ -7492,7 +7880,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>32 74 0 0 0 0</pose>
+      <pose>31 62 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -7541,7 +7929,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>20 74 0 0 0 0</pose>
+      <pose>20 62 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -7589,7 +7977,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>10 74 0 0 0 0</pose>
+      <pose>10 62 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -7637,7 +8025,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>32 55 0 0 0 0</pose>
+      <pose>31 44 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -7686,7 +8074,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>20 54 0 0 0 0</pose>
+      <pose>20 43 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -7734,7 +8122,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>10 55 0 0 0 0</pose>
+      <pose>10 44 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -7783,7 +8171,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>35 64 0 0 0 1.57079632679</pose>
+      <pose>34 52 0 0 0 1.57079632679</pose>
     </model>
 
     <model name='House 2'>
@@ -7832,7 +8220,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>8 64 0 0 0 1.57079632679</pose>
+      <pose>8 52 0 0 0 1.57079632679</pose>
     </model>
 
     <model name='House 1'>
@@ -7880,7 +8268,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>72 -6 0 0 0 0</pose>
+      <pose>69 -40 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -7929,7 +8317,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>60 -6 0 0 0 0</pose>
+      <pose>58 -40 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -7977,7 +8365,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>50 -6 0 0 0 0</pose>
+      <pose>48 -40 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -8025,7 +8413,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>72 -25 0 0 0 0</pose>
+      <pose>69 -58 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -8074,7 +8462,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>60 -26 0 0 0 0</pose>
+      <pose>58 -59 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -8122,7 +8510,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>50 -25 0 0 0 0</pose>
+      <pose>48 -58 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -8171,7 +8559,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>75 -16 0 0 0 1.57079632679</pose>
+      <pose>72 -50 0 0 0 1.57079632679</pose>
     </model>
 
     <model name='House 2'>
@@ -8220,7 +8608,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>48 -16 0 0 0 1.57079632679</pose>
+      <pose>46 -50 0 0 0 1.57079632679</pose>
     </model>
 
     <model name='House 1'>
@@ -8268,7 +8656,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>72 34 0 0 0 0</pose>
+      <pose>69 -6 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -8317,7 +8705,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>60 34 0 0 0 0</pose>
+      <pose>58 -6 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -8365,7 +8753,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>50 34 0 0 0 0</pose>
+      <pose>48 -6 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -8413,7 +8801,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>72 15 0 0 0 0</pose>
+      <pose>69 -24 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -8462,7 +8850,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>60 14 0 0 0 0</pose>
+      <pose>58 -25 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -8510,7 +8898,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>50 15 0 0 0 0</pose>
+      <pose>48 -24 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -8559,7 +8947,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>75 24 0 0 0 1.57079632679</pose>
+      <pose>72 -16 0 0 0 1.57079632679</pose>
     </model>
 
     <model name='House 2'>
@@ -8608,7 +8996,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>48 24 0 0 0 1.57079632679</pose>
+      <pose>46 -16 0 0 0 1.57079632679</pose>
     </model>
 
     <model name='House 1'>
@@ -8656,7 +9044,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>72 74 0 0 0 0</pose>
+      <pose>69 28 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -8705,7 +9093,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>60 74 0 0 0 0</pose>
+      <pose>58 28 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -8753,7 +9141,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>50 74 0 0 0 0</pose>
+      <pose>48 28 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -8801,7 +9189,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>72 55 0 0 0 0</pose>
+      <pose>69 10 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -8850,7 +9238,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>60 54 0 0 0 0</pose>
+      <pose>58 9 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -8898,7 +9286,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>50 55 0 0 0 0</pose>
+      <pose>48 10 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -8947,7 +9335,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>75 64 0 0 0 1.57079632679</pose>
+      <pose>72 18 0 0 0 1.57079632679</pose>
     </model>
 
     <model name='House 2'>
@@ -8996,7 +9384,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>48 64 0 0 0 1.57079632679</pose>
+      <pose>46 18 0 0 0 1.57079632679</pose>
     </model>
 
     <model name='House 1'>
@@ -9044,7 +9432,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>112 -6 0 0 0 0</pose>
+      <pose>69 62 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -9093,7 +9481,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>100 -6 0 0 0 0</pose>
+      <pose>58 62 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -9141,7 +9529,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>90 -6 0 0 0 0</pose>
+      <pose>48 62 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -9189,7 +9577,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>112 -25 0 0 0 0</pose>
+      <pose>69 44 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -9238,7 +9626,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>100 -26 0 0 0 0</pose>
+      <pose>58 43 0 0 0 0</pose>
     </model>
 
     <model name='House 1'>
@@ -9286,7 +9674,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>90 -25 0 0 0 0</pose>
+      <pose>48 44 0 0 0 0</pose>
     </model>
 
     <model name='House 2'>
@@ -9335,7 +9723,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>115 -16 0 0 0 1.57079632679</pose>
+      <pose>72 52 0 0 0 1.57079632679</pose>
     </model>
 
     <model name='House 2'>
@@ -9384,16 +9772,16 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>88 -16 0 0 0 1.57079632679</pose>
+      <pose>46 52 0 0 0 1.57079632679</pose>
     </model>
 
-    <model name='House 1'>
+    <model name='House 3'>
       <static>1</static>
       <link name='link'>
         <collision name='collision'>
           <geometry>
             <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
+              <uri>model://house_3/meshes/house_3.dae</uri>
             </mesh>
           </geometry>
           <max_contacts>10</max_contacts>
@@ -9410,63 +9798,15 @@
         <visual name='visual'>
           <geometry>
             <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
+              <uri>model://house_3/meshes/house_3.dae</uri>
             </mesh>
           </geometry>
           <material>
             <script>
-              <uri>model://house_1/materials/scripts</uri>
+              <uri>model://house_3/materials/scripts</uri>
+              <uri>model://house_3/materials/textures</uri>
               <uri>model://house_1/materials/textures</uri>
-              <name>House_1/Diffuse</name>
-            </script>
-            <shader type='normal_map_object_space'>
-              <normal_map>House_1_Normal.png</normal_map>
-            </shader>
-          </material>
-        </visual>
-        <velocity_decay>
-          <linear>0</linear>
-          <angular>0</angular>
-        </velocity_decay>
-        <self_collide>0</self_collide>
-        <kinematic>0</kinematic>
-        <gravity>1</gravity>
-      </link>
-      <pose>112 34 0 0 0 0</pose>
-    </model>
-
-    <model name='House 2'>
-      <static>1</static>
-      <link name='link'>
-        <collision name='collision'>
-          <geometry>
-            <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
-            </mesh>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <bounce/>
-            <friction>
-              <ode/>
-            </friction>
-            <contact>
-              <ode/>
-            </contact>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <geometry>
-            <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
-            </mesh>
-          </geometry>
-          <material>
-            <script>
-              <uri>model://house_2/materials/scripts</uri>
-              <uri>model://house_2/materials/textures</uri>
-              <uri>model://house_1/materials/textures</uri>
-              <name>House_2/Diffuse</name>
+              <name>House_3/Diffuse</name>
             </script>
             <shader type='normal_map_object_space'>
               <normal_map>model://house_1/materials/textures/House_1_Normal.png</normal_map>
@@ -9481,16 +9821,16 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>100 34 0 0 0 0</pose>
+      <pose>44 4 0 0 0 1.57079632679</pose>
     </model>
 
-    <model name='House 1'>
+    <model name='House 3'>
       <static>1</static>
       <link name='link'>
         <collision name='collision'>
           <geometry>
             <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
+              <uri>model://house_3/meshes/house_3.dae</uri>
             </mesh>
           </geometry>
           <max_contacts>10</max_contacts>
@@ -9507,111 +9847,15 @@
         <visual name='visual'>
           <geometry>
             <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
+              <uri>model://house_3/meshes/house_3.dae</uri>
             </mesh>
           </geometry>
           <material>
             <script>
-              <uri>model://house_1/materials/scripts</uri>
+              <uri>model://house_3/materials/scripts</uri>
+              <uri>model://house_3/materials/textures</uri>
               <uri>model://house_1/materials/textures</uri>
-              <name>House_1/Diffuse</name>
-            </script>
-            <shader type='normal_map_object_space'>
-              <normal_map>House_1_Normal.png</normal_map>
-            </shader>
-          </material>
-        </visual>
-        <velocity_decay>
-          <linear>0</linear>
-          <angular>0</angular>
-        </velocity_decay>
-        <self_collide>0</self_collide>
-        <kinematic>0</kinematic>
-        <gravity>1</gravity>
-      </link>
-      <pose>90 34 0 0 0 0</pose>
-    </model>
-
-    <model name='House 1'>
-      <static>1</static>
-      <link name='link'>
-        <collision name='collision'>
-          <geometry>
-            <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
-            </mesh>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <bounce/>
-            <friction>
-              <ode/>
-            </friction>
-            <contact>
-              <ode/>
-            </contact>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <geometry>
-            <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
-            </mesh>
-          </geometry>
-          <material>
-            <script>
-              <uri>model://house_1/materials/scripts</uri>
-              <uri>model://house_1/materials/textures</uri>
-              <name>House_1/Diffuse</name>
-            </script>
-            <shader type='normal_map_object_space'>
-              <normal_map>House_1_Normal.png</normal_map>
-            </shader>
-          </material>
-        </visual>
-        <velocity_decay>
-          <linear>0</linear>
-          <angular>0</angular>
-        </velocity_decay>
-        <self_collide>0</self_collide>
-        <kinematic>0</kinematic>
-        <gravity>1</gravity>
-      </link>
-      <pose>112 15 0 0 0 0</pose>
-    </model>
-
-    <model name='House 2'>
-      <static>1</static>
-      <link name='link'>
-        <collision name='collision'>
-          <geometry>
-            <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
-            </mesh>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <bounce/>
-            <friction>
-              <ode/>
-            </friction>
-            <contact>
-              <ode/>
-            </contact>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <geometry>
-            <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
-            </mesh>
-          </geometry>
-          <material>
-            <script>
-              <uri>model://house_2/materials/scripts</uri>
-              <uri>model://house_2/materials/textures</uri>
-              <uri>model://house_1/materials/textures</uri>
-              <name>House_2/Diffuse</name>
+              <name>House_3/Diffuse</name>
             </script>
             <shader type='normal_map_object_space'>
               <normal_map>model://house_1/materials/textures/House_1_Normal.png</normal_map>
@@ -9626,16 +9870,16 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>100 14 0 0 0 0</pose>
+      <pose>10 4 0 0 0 1.57079632679</pose>
     </model>
 
-    <model name='House 1'>
+    <model name='Office Building 1'>
       <static>1</static>
       <link name='link'>
         <collision name='collision'>
           <geometry>
             <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
+              <uri>model://office_building/meshes/office_building.dae</uri>
             </mesh>
           </geometry>
           <max_contacts>10</max_contacts>
@@ -9652,19 +9896,9 @@
         <visual name='visual'>
           <geometry>
             <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
+              <uri>model://office_building/meshes/office_building.dae</uri>
             </mesh>
           </geometry>
-          <material>
-            <script>
-              <uri>model://house_1/materials/scripts</uri>
-              <uri>model://house_1/materials/textures</uri>
-              <name>House_1/Diffuse</name>
-            </script>
-            <shader type='normal_map_object_space'>
-              <normal_map>House_1_Normal.png</normal_map>
-            </shader>
-          </material>
         </visual>
         <velocity_decay>
           <linear>0</linear>
@@ -9674,16 +9908,16 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>90 15 0 0 0 0</pose>
+      <pose> 90 -11 0 0 0 0</pose>
     </model>
 
-    <model name='House 2'>
+    <model name='Office Building 1'>
       <static>1</static>
       <link name='link'>
         <collision name='collision'>
           <geometry>
             <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
+              <uri>model://office_building/meshes/office_building.dae</uri>
             </mesh>
           </geometry>
           <max_contacts>10</max_contacts>
@@ -9700,20 +9934,9 @@
         <visual name='visual'>
           <geometry>
             <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
+              <uri>model://office_building/meshes/office_building.dae</uri>
             </mesh>
           </geometry>
-          <material>
-            <script>
-              <uri>model://house_2/materials/scripts</uri>
-              <uri>model://house_2/materials/textures</uri>
-              <uri>model://house_1/materials/textures</uri>
-              <name>House_2/Diffuse</name>
-            </script>
-            <shader type='normal_map_object_space'>
-              <normal_map>model://house_1/materials/textures/House_1_Normal.png</normal_map>
-            </shader>
-          </material>
         </visual>
         <velocity_decay>
           <linear>0</linear>
@@ -9723,16 +9946,16 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>115 24 0 0 0 1.57079632679</pose>
+      <pose> 90 10 0 0 0 0</pose>
     </model>
 
-    <model name='House 2'>
+    <model name='Office Building 1'>
       <static>1</static>
       <link name='link'>
         <collision name='collision'>
           <geometry>
             <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
+              <uri>model://office_building/meshes/office_building.dae</uri>
             </mesh>
           </geometry>
           <max_contacts>10</max_contacts>
@@ -9749,20 +9972,9 @@
         <visual name='visual'>
           <geometry>
             <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
+              <uri>model://office_building/meshes/office_building.dae</uri>
             </mesh>
           </geometry>
-          <material>
-            <script>
-              <uri>model://house_2/materials/scripts</uri>
-              <uri>model://house_2/materials/textures</uri>
-              <uri>model://house_1/materials/textures</uri>
-              <name>House_2/Diffuse</name>
-            </script>
-            <shader type='normal_map_object_space'>
-              <normal_map>model://house_1/materials/textures/House_1_Normal.png</normal_map>
-            </shader>
-          </material>
         </visual>
         <velocity_decay>
           <linear>0</linear>
@@ -9772,395 +9984,7 @@
         <kinematic>0</kinematic>
         <gravity>1</gravity>
       </link>
-      <pose>88 24 0 0 0 1.57079632679</pose>
-    </model>
-
-    <model name='House 1'>
-      <static>1</static>
-      <link name='link'>
-        <collision name='collision'>
-          <geometry>
-            <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
-            </mesh>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <bounce/>
-            <friction>
-              <ode/>
-            </friction>
-            <contact>
-              <ode/>
-            </contact>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <geometry>
-            <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
-            </mesh>
-          </geometry>
-          <material>
-            <script>
-              <uri>model://house_1/materials/scripts</uri>
-              <uri>model://house_1/materials/textures</uri>
-              <name>House_1/Diffuse</name>
-            </script>
-            <shader type='normal_map_object_space'>
-              <normal_map>House_1_Normal.png</normal_map>
-            </shader>
-          </material>
-        </visual>
-        <velocity_decay>
-          <linear>0</linear>
-          <angular>0</angular>
-        </velocity_decay>
-        <self_collide>0</self_collide>
-        <kinematic>0</kinematic>
-        <gravity>1</gravity>
-      </link>
-      <pose>112 74 0 0 0 0</pose>
-    </model>
-
-    <model name='House 2'>
-      <static>1</static>
-      <link name='link'>
-        <collision name='collision'>
-          <geometry>
-            <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
-            </mesh>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <bounce/>
-            <friction>
-              <ode/>
-            </friction>
-            <contact>
-              <ode/>
-            </contact>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <geometry>
-            <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
-            </mesh>
-          </geometry>
-          <material>
-            <script>
-              <uri>model://house_2/materials/scripts</uri>
-              <uri>model://house_2/materials/textures</uri>
-              <uri>model://house_1/materials/textures</uri>
-              <name>House_2/Diffuse</name>
-            </script>
-            <shader type='normal_map_object_space'>
-              <normal_map>model://house_1/materials/textures/House_1_Normal.png</normal_map>
-            </shader>
-          </material>
-        </visual>
-        <velocity_decay>
-          <linear>0</linear>
-          <angular>0</angular>
-        </velocity_decay>
-        <self_collide>0</self_collide>
-        <kinematic>0</kinematic>
-        <gravity>1</gravity>
-      </link>
-      <pose>100 74 0 0 0 0</pose>
-    </model>
-
-    <model name='House 1'>
-      <static>1</static>
-      <link name='link'>
-        <collision name='collision'>
-          <geometry>
-            <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
-            </mesh>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <bounce/>
-            <friction>
-              <ode/>
-            </friction>
-            <contact>
-              <ode/>
-            </contact>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <geometry>
-            <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
-            </mesh>
-          </geometry>
-          <material>
-            <script>
-              <uri>model://house_1/materials/scripts</uri>
-              <uri>model://house_1/materials/textures</uri>
-              <name>House_1/Diffuse</name>
-            </script>
-            <shader type='normal_map_object_space'>
-              <normal_map>House_1_Normal.png</normal_map>
-            </shader>
-          </material>
-        </visual>
-        <velocity_decay>
-          <linear>0</linear>
-          <angular>0</angular>
-        </velocity_decay>
-        <self_collide>0</self_collide>
-        <kinematic>0</kinematic>
-        <gravity>1</gravity>
-      </link>
-      <pose>90 74 0 0 0 0</pose>
-    </model>
-
-    <model name='House 1'>
-      <static>1</static>
-      <link name='link'>
-        <collision name='collision'>
-          <geometry>
-            <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
-            </mesh>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <bounce/>
-            <friction>
-              <ode/>
-            </friction>
-            <contact>
-              <ode/>
-            </contact>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <geometry>
-            <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
-            </mesh>
-          </geometry>
-          <material>
-            <script>
-              <uri>model://house_1/materials/scripts</uri>
-              <uri>model://house_1/materials/textures</uri>
-              <name>House_1/Diffuse</name>
-            </script>
-            <shader type='normal_map_object_space'>
-              <normal_map>House_1_Normal.png</normal_map>
-            </shader>
-          </material>
-        </visual>
-        <velocity_decay>
-          <linear>0</linear>
-          <angular>0</angular>
-        </velocity_decay>
-        <self_collide>0</self_collide>
-        <kinematic>0</kinematic>
-        <gravity>1</gravity>
-      </link>
-      <pose>112 55 0 0 0 0</pose>
-    </model>
-
-    <model name='House 2'>
-      <static>1</static>
-      <link name='link'>
-        <collision name='collision'>
-          <geometry>
-            <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
-            </mesh>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <bounce/>
-            <friction>
-              <ode/>
-            </friction>
-            <contact>
-              <ode/>
-            </contact>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <geometry>
-            <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
-            </mesh>
-          </geometry>
-          <material>
-            <script>
-              <uri>model://house_2/materials/scripts</uri>
-              <uri>model://house_2/materials/textures</uri>
-              <uri>model://house_1/materials/textures</uri>
-              <name>House_2/Diffuse</name>
-            </script>
-            <shader type='normal_map_object_space'>
-              <normal_map>model://house_1/materials/textures/House_1_Normal.png</normal_map>
-            </shader>
-          </material>
-        </visual>
-        <velocity_decay>
-          <linear>0</linear>
-          <angular>0</angular>
-        </velocity_decay>
-        <self_collide>0</self_collide>
-        <kinematic>0</kinematic>
-        <gravity>1</gravity>
-      </link>
-      <pose>100 54 0 0 0 0</pose>
-    </model>
-
-    <model name='House 1'>
-      <static>1</static>
-      <link name='link'>
-        <collision name='collision'>
-          <geometry>
-            <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
-            </mesh>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <bounce/>
-            <friction>
-              <ode/>
-            </friction>
-            <contact>
-              <ode/>
-            </contact>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <geometry>
-            <mesh>
-              <uri>model://house_1/meshes/house_1.dae</uri>
-            </mesh>
-          </geometry>
-          <material>
-            <script>
-              <uri>model://house_1/materials/scripts</uri>
-              <uri>model://house_1/materials/textures</uri>
-              <name>House_1/Diffuse</name>
-            </script>
-            <shader type='normal_map_object_space'>
-              <normal_map>House_1_Normal.png</normal_map>
-            </shader>
-          </material>
-        </visual>
-        <velocity_decay>
-          <linear>0</linear>
-          <angular>0</angular>
-        </velocity_decay>
-        <self_collide>0</self_collide>
-        <kinematic>0</kinematic>
-        <gravity>1</gravity>
-      </link>
-      <pose>90 55 0 0 0 0</pose>
-    </model>
-
-    <model name='House 2'>
-      <static>1</static>
-      <link name='link'>
-        <collision name='collision'>
-          <geometry>
-            <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
-            </mesh>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <bounce/>
-            <friction>
-              <ode/>
-            </friction>
-            <contact>
-              <ode/>
-            </contact>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <geometry>
-            <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
-            </mesh>
-          </geometry>
-          <material>
-            <script>
-              <uri>model://house_2/materials/scripts</uri>
-              <uri>model://house_2/materials/textures</uri>
-              <uri>model://house_1/materials/textures</uri>
-              <name>House_2/Diffuse</name>
-            </script>
-            <shader type='normal_map_object_space'>
-              <normal_map>model://house_1/materials/textures/House_1_Normal.png</normal_map>
-            </shader>
-          </material>
-        </visual>
-        <velocity_decay>
-          <linear>0</linear>
-          <angular>0</angular>
-        </velocity_decay>
-        <self_collide>0</self_collide>
-        <kinematic>0</kinematic>
-        <gravity>1</gravity>
-      </link>
-      <pose>115 64 0 0 0 1.57079632679</pose>
-    </model>
-
-    <model name='House 2'>
-      <static>1</static>
-      <link name='link'>
-        <collision name='collision'>
-          <geometry>
-            <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
-            </mesh>
-          </geometry>
-          <max_contacts>10</max_contacts>
-          <surface>
-            <bounce/>
-            <friction>
-              <ode/>
-            </friction>
-            <contact>
-              <ode/>
-            </contact>
-          </surface>
-        </collision>
-        <visual name='visual'>
-          <geometry>
-            <mesh>
-              <uri>model://house_2/meshes/house_2.dae</uri>
-            </mesh>
-          </geometry>
-          <material>
-            <script>
-              <uri>model://house_2/materials/scripts</uri>
-              <uri>model://house_2/materials/textures</uri>
-              <uri>model://house_1/materials/textures</uri>
-              <name>House_2/Diffuse</name>
-            </script>
-            <shader type='normal_map_object_space'>
-              <normal_map>model://house_1/materials/textures/House_1_Normal.png</normal_map>
-            </shader>
-          </material>
-        </visual>
-        <velocity_decay>
-          <linear>0</linear>
-          <angular>0</angular>
-        </velocity_decay>
-        <self_collide>0</self_collide>
-        <kinematic>0</kinematic>
-        <gravity>1</gravity>
-      </link>
-      <pose>88 64 0 0 0 1.57079632679</pose>
+      <pose> 90 30 0 0 0 0</pose>
     </model>
 
       </world>

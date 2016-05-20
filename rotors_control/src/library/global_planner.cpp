@@ -25,7 +25,6 @@
 namespace rotors_control {
 
 
-// TODO: Create a common.h
 double angle(Cell pos, Cell p, double lastAng) {
   int dx = p.x() - pos.x();
   int dy = p.y() - pos.y();
@@ -44,16 +43,6 @@ double interpolate(double start, double end, double ratio) {
   return start + (end - start) * ratio;
 }
 
-WaypointWithTime interpolateWaypoints(const WaypointWithTime & a, const WaypointWithTime & b, 
-                                      int step, int totalSteps, int minTime) {
-
-  double ratio = (double)step / (double)totalSteps;
-  double x = interpolate(a.position[0], b.position[0], ratio);
-  double y = interpolate(a.position[1], b.position[1], ratio);
-  double z = interpolate(a.position[2], b.position[2], ratio);
-  double yaw = interpolate(a.yaw, b.yaw, ratio);
-  return WaypointWithTime(minTime, x, y, z, yaw);
-}
 
 double squared(double x) {
   return x * x;
@@ -126,7 +115,7 @@ void GlobalPlanner::goBack() {
       break;
     }    
   }
-  pathToWaypoints(newPath);
+  pathToMsg(newPath);
 }
 
 bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
@@ -172,57 +161,10 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
   return !pathIsBlocked;
 }
 
-void GlobalPlanner::increaseResolution(double minDist, double minRot, double minTime) {
-  // Interpolates the path such that there is at most minDist, minRot and minTime between waypoints
-  
-  // Remove every other cell to smooth out path
-  std::vector<WaypointWithTime> newWaypoints;
-  for (int i=0; i < waypoints.size()-1; i+=2) {
-    newWaypoints.push_back(waypoints[i]);
-  }
-  newWaypoints.push_back(waypoints[waypoints.size()-1]);
-  waypoints = newWaypoints;
-
-  newWaypoints.resize(0);
-
-  // newWaypoints.push_back(waypoints[0]);
-  // ROS_INFO("0: %f, 1: %f", waypoints[0].yaw, waypoints[1].yaw);
-  for (int i=1; i < waypoints.size(); ++i) {
-    double dist = distance(waypoints[i].position, waypoints[i-1].position);
-    double diffYaw = std::abs(waypoints[i].yaw - waypoints[i-1].yaw);
-    int numSteps = (int) std::max(dist / minDist, (diffYaw / minRot)) + 1;
-    for (int j=1; j <= numSteps; ++j) {
-      newWaypoints.push_back(interpolateWaypoints(waypoints[i-1], waypoints[i], j, numSteps, minTime));
-    }
-  }
-  waypoints = newWaypoints;
-}
 
 void GlobalPlanner::truncatePath() {
-  // std::vector<WaypointWithTime> newWaypoints;
-  // int currIndex = 0;
-  // for (int i=0; i < waypoints.size(); ++i) {
-  //   Cell c = Cell(waypoints[i].position);
-  //   if (c == Cell(currPos)) {
-  //     currIndex = i;
-      // ROS_INFO("currIndex = %d", currIndex);
-  //     break;
-  //   }
-  //   if (occupied.find(c) != occupied.end()) {
-  //     return;
-  //   }
-  // }
-  // for (int i=currIndex+1; i < waypoints.size(); ++i) {
-  //   Cell c = Cell(waypoints[i].position);
-  //   if (occupied.find(c) != occupied.end()) {
-  //     return;
-  //   }
-  //   newWaypoints.push_back(waypoints[i]);
-  // }
-  // waypoints = newWaypoints;
-
   pathCells.clear();
-  waypoints.resize(0);
+  pathMsg.poses.resize(0);
 }
 
 bool GlobalPlanner::isNearWall(const Cell & cell) {
@@ -241,7 +183,6 @@ void GlobalPlanner::getOpenNeighbors(const Cell & cell,
                                      bool is3D) const {
   // Fill neighbors with the 8 horizontal and 2 vertical non-occupied neigbors
   // It's long because it uses the minimum number of 'if's 
-  // TODO: Try using weights instead of 'if's
   double x = cell.x();
   double y = cell.y();
   double z = cell.z();
@@ -321,7 +262,7 @@ double GlobalPlanner::getSingleCellRisk(const Cell & cell){
     return 1.0;   // Octomap does not keep track of the ground
   }
   if (occProb.find(cell) != occProb.end()) {
-    return octomap::probability(occProb[cell]);   // If the cell has been seen
+    return octomap::probability(occProb[cell]);     // If the cell has been seen
   }
   return explorePenalty * heightPrior[cell.z()];    // Fixed risk for unexplored cells
 }
@@ -343,7 +284,6 @@ double GlobalPlanner::getRisk(const Cell & cell){
 
   double prior = heightPrior[floor(cell.z())];
   double totalRisk = risk;
-  // totalRisk = posterior(risk, prior);     // Needs tuning
   
   riskCache[cell] = totalRisk;  
   return totalRisk;      
@@ -423,13 +363,14 @@ double GlobalPlanner::altitudeHeuristic(const Cell & u, const Cell & goal) {
 double GlobalPlanner::getHeuristic(const Node & u, const Cell & goal) {
   // Only overestimate the distance
   double heuristic = overEstimateFactor * diagDistance2D(u.cell, goal);
-  heuristic += riskHeuristic(u.cell, goal);            // Risk through a straight-line path of unexplored space
   heuristic += altitudeHeuristic(u.cell, goal);        // Lower bound cost due to altitude change
   heuristic += smoothnessHeuristic(u, goal);           // Lower bound cost due to turning  
+  if (useRiskHeuristics){
+    heuristic += riskHeuristic(u.cell, goal);            // Risk through a straight-line path of unexplored space
+  }
   return heuristic;
 }
 
- // TODO: Use this 
  geometry_msgs::PoseStamped GlobalPlanner::createPoseMsg(double x, double y, double z, double yaw) {
     geometry_msgs::PoseStamped poseMsg;
     poseMsg.header.frame_id="/world";
@@ -437,26 +378,24 @@ double GlobalPlanner::getHeuristic(const Node & u, const Cell & goal) {
     poseMsg.pose.position.y = y;
     poseMsg.pose.position.z = z;
     poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
-    poseMsg.pose.orientation.x = poseMsg.pose.orientation.z;
-    poseMsg.pose.orientation.z = 0.0;
+    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(yaw + 3.1415/2.0);  // 90 deg fix
     return poseMsg;
  }
 
-// TODO: Straight to msg, also fill in pathCells here 
-void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
-  waypoints.resize(0);
+void GlobalPlanner::pathToMsg(std::vector<Cell> & path) {
+  pathMsg.header.frame_id="/world";
+  pathMsg.poses.resize(0);
+
   // Use actual position instead of the center of the cell
-  // waypoints.push_back(WaypointWithTime(0, currPos.x, currPos.y, currPos.z, yaw));   
   double lastYaw = currYaw;
   pathCells.clear();
-  // path.push_back(path[path.size()-1]); // Needed if every other cell of the path is discarded
 
-  for (int i=0; i < path.size()-1; ++i) {
+  for (int i=1; i < path.size()-1; ++i) {
     Cell p = path[i];
     Cell lastP = path[i-1];
     double newYaw = angle(p, path[i+1], lastYaw);
     // if (newYaw != lastYaw) {   // only publish corner points
-      waypoints.push_back(WaypointWithTime(0, p.x()+0.5, p.y()+0.5, p.z()+0.5, newYaw));
+      pathMsg.poses.push_back(createPoseMsg(p.x()+0.5, p.y()+0.5, p.z()+0.5, newYaw));
     // }
     lastYaw = newYaw;
 
@@ -468,7 +407,7 @@ void GlobalPlanner::pathToWaypoints(std::vector<Cell> & path) {
     }
   }
   Cell lastPoint = path[path.size()-1];   // Last point has the same yaw as the previous point
-  waypoints.push_back(WaypointWithTime(0, lastPoint.x()+0.5, lastPoint.y()+0.5, lastPoint.z()+0.5, lastYaw));
+  pathMsg.poses.push_back(createPoseMsg(lastPoint.x()+0.5, lastPoint.y()+0.5, lastPoint.z()+0.5, lastYaw));
   goalPos = lastPoint;
 
   // increaseResolution(2.0, 10, 1000);
@@ -526,6 +465,7 @@ void GlobalPlanner::printPathStats(const std::vector<Cell> & path,
   lastNode = Node(start, startParent);
 
   printf("Cell:\t \tcurrCo \theuri \ttoGoal \tOvEst \t|| \tEdgeC  \tEdgeD \tEdgeR \tEdgeS \t||\theuris \t\tDist \t\tRisk  \t\tAlti   \t\tSmooth\n");
+  printf("%s (parent) \n", startParent.asString().c_str());
   printf("%s: \t%3.2f \t%3.2f \t%3.2f \t%3.2f \t|| \n", start.asString().c_str(), 
           currCost, getHeuristic(lastNode, goal), totalCost, totalCost / getHeuristic(lastNode, goal));
 
@@ -583,17 +523,22 @@ void GlobalPlanner::printPathStats(const std::vector<Cell> & path,
 // bool GlobalPlanner::isGoalBlocked() { }
 
 bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
-  Cell s = Cell(currPos);
+  Cell s = Cell(currPos.x + currVel.x, currPos.y + currVel.y, currPos.z + currVel.z);
   Cell t = goalPos;
   Cell parent = s.getNeighborFromYaw(currYaw + M_PI); // The cell behind the start cell
-  s = s.getNeighborFromYaw(currYaw);             // Plan from the cell in front
+  
+  // Plan from the cell in front 
+  // Cell parent = s;
+  // s = s.getNeighborFromYaw(currYaw);             
   ROS_INFO("Planning a path from %s to %s", s.asString().c_str(), t.asString().c_str());
+  ROS_INFO("currPos: %2.2f,%2.2f,%2.2f\t s: %2.2f,%2.2f,%2.2f", 
+                      currPos.x, currPos.y, currPos.z, s.x()+0.5, s.y()+0.5, s.z()+0.5);
   bool foundPath = false;
   double bestPathCost = inf;
-  overEstimateFactor = 8.0;
-  maxIterations = 2000;
+  overEstimateFactor = 5.0;
+  maxIterations = 5000;
 
-  while (overEstimateFactor > 1.05 && maxIterations > lastIterations) {
+  while (overEstimateFactor >= 1.03 && maxIterations > lastIterations) {
     std::vector<Cell> newPath;
     bool foundNewPath;
     if (overEstimateFactor > 3) {
@@ -616,12 +561,12 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
       break;
     }
       maxIterations -= lastIterations;
-      overEstimateFactor = (overEstimateFactor - 1.0) / 5.0 + 1.0;
+      overEstimateFactor = (overEstimateFactor - 1.0) / 4.0 + 1.0;
   }
 
   // Last resort, try 2d search at maxHeight
   if (!foundPath) {
-    maxIterations = 1000;
+    maxIterations = 5000;
     foundPath = Find2DPath(path, s, t);
   }
 
@@ -767,7 +712,6 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
       continue;
     }
     seenNodes.insert(u);
-    seen.insert(u.cell);
     numIter++;
     if (u.cell == t) {
       bestGoalNode = u;
@@ -792,6 +736,7 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
         double overestimatedHeuristic = newDist + getHeuristic(v, t);
         // double heuristic = newDist + overEstimateFactor*distance2D(v, t);
         pq.push(std::make_pair(v, overestimatedHeuristic));
+        seen.insert(v.cell);
       }
     }
   }
@@ -799,14 +744,16 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
   if (bestGoalNode.cell != t) {
     return false;   // No path found
   }
-  printf("Average iteration time: %f ms \n", (std::clock() - startTime) / (double)(CLOCKS_PER_SEC / 1000) / numIter);
+  // printf("Average iteration time: %f ms \n", (std::clock() - startTime) / (double)(CLOCKS_PER_SEC / 1000) / numIter);
 
   // Get the path by walking from t back to s (excluding s)
   Node walker = bestGoalNode;
-  while (walker.cell != s.cell) {
+  while (walker != s) {
+    // printf("dist[%s] = %2.2f\n", walker.cell.asString().c_str(), distance[walker]);
     path.push_back(walker.cell);
     walker = parent[walker];
   }
+  // printf("dist[%s] = %2.2f\n", walker.cell.asString().c_str(), distance[walker]);
   std::reverse(path.begin(),path.end());
   // printPathStats(path, startParent, start, t, distance[bestGoalNode], distance);
   lastIterations = numIter;
@@ -819,7 +766,7 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
 
 bool GlobalPlanner::getGlobalPath() {
   // true iff a path needs to be published, either a new path or a path back
-  // The path is then stored in this.waypoints
+  // The path is then stored in this.pathMsg
   Cell s = Cell(currPos);
   Cell t = Cell(goalPos.x(), goalPos.y(), 2);
   
@@ -839,11 +786,16 @@ bool GlobalPlanner::getGlobalPath() {
     // Both current position and goal are free, try to find a path
     std::vector<Cell> path;
     if (!FindPath(path)) {
-      ROS_INFO("  Failed to find a path");
+      double riskOfGoal = getRisk(t);
+      ROS_INFO("  Failed to find a path, risk of t: %3.2f", riskOfGoal);
       goalIsBlocked = true;
       return false;
     }
-    pathToWaypoints(path);
+    // std::vector<Cell> path2;
+    // useRiskHeuristics = false;
+    // FindPath(path2);
+    // useRiskHeuristics = true;
+    pathToMsg(path);
     return true;
   }
 }

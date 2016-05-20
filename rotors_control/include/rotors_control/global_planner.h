@@ -202,8 +202,10 @@ struct PathInfo {
 class GlobalPlanner {
  public:
   // octomap::OcTree* octree;
-  std::vector<double> heightPrior { 1.0, 0.67, 0.5, 0.33, 0.25, 0.17, 0.13,
-                                    0.08, 0.06, 0.04, 0.03, 0.02, 0.01};
+  std::vector<double> heightPrior { 1.0, 0.5, 0.3, 0.2, 0.1, 0.05, 0.01,
+                                    0.01, 0.01, 0.01, 0.01, 0.01, 0.01};
+  // std::vector<double> heightPrior { 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+  //                                   0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
   // std::vector<double> heightPrior { 1.0, 0.2, 0.1333, 0.1, 0.833, 0.05, 0.33,
   //                                   0.025, 0.0166, 0.0125, 0.001, 0.001, 0.001};
 
@@ -216,36 +218,36 @@ class GlobalPlanner {
   std::unordered_map<Cell, double, HashCell> occProb;
   std::unordered_map<Cell, double, HashCell> riskCache;
   
-  // TODO: use unordered_set
-  std::set<Cell> occupied;
-  std::set<Cell> seen;        // Set of cells that were explored in last search
-  std::set<Cell> pathCells;   // Set of cells that are on current path, and cannot be blocked
-  std::vector<WaypointWithTime> waypoints;    // TODO: remove and use pathMsg
+  std::unordered_set<Cell, HashCell> occupied;
+  std::unordered_set<Cell, HashCell> seen;        // Set of cells that were explored in last search
+  std::unordered_set<Cell, HashCell> pathCells;   // Set of cells that are on current path, and cannot be blocked
   nav_msgs::Path pathMsg;
   std::vector<Cell> pathBack;
   geometry_msgs::Point currPos;
   double currYaw;
+  geometry_msgs::Vector3 currVel;
   Cell goalPos = Cell(0, 0, 3);
-  bool goingBack = true;    // we start by just finding the start position
+  bool goingBack = true;      // we start by just finding the start position
   double overEstimateFactor = 4.0;
   int minHeight = 1;
-  int maxHeight = 4;
-  double maxPathProb = -1.0;
+  int maxHeight = 10;
+  double maxPathProb = 0.0;
   double maxBailProb = 1.0;
-  double maxCellRisk = 10.0;
+  double maxCellRisk = 20.0;
   double inf = std::numeric_limits<double>::infinity();
   int maxIterations = 2000;
   int lastIterations = 0;
   std::vector<Cell> lastPath;
   double lastPathCost = 0.0;
   PathInfo lastPathInfo;
-  double smoothFactor = 1.0;
-  double riskFactor = 20.0;
-  double neighborRiskFlow = 1.0;
+  double smoothFactor = 2.0;
+  double riskFactor = 50.0;
+  double neighborRiskFlow = 0.2;
   double explorePenalty = 0.015;
   double upCost = 3.0;
   double downCost = 1.0;
   bool goalIsBlocked = false;
+  bool useRiskHeuristics = true;
 
   GlobalPlanner();
   ~GlobalPlanner();
@@ -273,7 +275,7 @@ class GlobalPlanner {
   double getHeuristic(const Node & u, const Cell & goal);
   
   geometry_msgs::PoseStamped createPoseMsg(double x, double y, double z, double yaw);
-  void pathToWaypoints(std::vector<Cell> & path);
+  void pathToMsg(std::vector<Cell> & path);
   void goBack();
 
   PathInfo getPathInfo(const std::vector<Cell> & path, const Node lastNode);

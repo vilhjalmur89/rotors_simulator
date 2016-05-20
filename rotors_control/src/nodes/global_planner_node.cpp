@@ -47,11 +47,13 @@ GlobalPlannerNode::GlobalPlannerNode() {
 
   cmd_octomap_full_sub_ = nh.subscribe("/octomap_full", 1, &GlobalPlannerNode::OctomapFullCallback, this);
   cmd_ground_truth_sub_ = nh.subscribe("/mavros/local_position/pose", 1,&GlobalPlannerNode::PositionCallback, this);
+  velocity_sub_ = nh.subscribe("/mavros/local_position/velocity", 1,&GlobalPlannerNode::VelocityCallback, this);
   cmd_clicked_point_sub_ = nh.subscribe("/clicked_point", 1,&GlobalPlannerNode::ClickedPointCallback, this);
   laser_sensor_sub_ = nh.subscribe("/scan", 1,&GlobalPlannerNode::LaserSensorCallback, this);
 
   cmd_global_path_pub_ = nh.advertise<nav_msgs::Path>("/global_path", 10);
   cmd_actual_path_pub_ = nh.advertise<nav_msgs::Path>("/actual_path", 10);
+  cmd_clicked_point_pub_ = nh.advertise<geometry_msgs::PointStamped>("/global_goal", 10);
   cmd_explored_cells_pub_ = nh.advertise<visualization_msgs::MarkerArray>("/explored_cells", 10);
 
   actualPath.header.frame_id="/world";
@@ -62,11 +64,24 @@ GlobalPlannerNode::~GlobalPlannerNode() { }
 void GlobalPlannerNode::SetNewGoal(Cell goal) {
   ROS_INFO("========== Set goal : %s ==========", goal.asString().c_str());
   global_planner.setGoal(goal);
+  geometry_msgs::PointStamped pointMsg;
+  pointMsg.header.frame_id = "/world";
+  pointMsg.point.x = goal.x() + 0.5;
+  pointMsg.point.y = goal.y() + 0.5;
+  pointMsg.point.z = goal.z() + 0.5;
+  cmd_clicked_point_pub_.publish(pointMsg);
+  cmd_clicked_point_pub_.publish(pointMsg);
   PlanPath();
 }
 
-void GlobalPlannerNode::PositionCallback(
-    const geometry_msgs::PoseStamped& msg) {
+void GlobalPlannerNode::VelocityCallback(const geometry_msgs::TwistStamped& msg) {
+  global_planner.currVel = msg.twist.linear;
+  global_planner.currVel.x = (msg.twist.linear.y);  // 90 deg fix
+  global_planner.currVel.y = -(msg.twist.linear.x); // 90 deg fix
+}
+
+
+void GlobalPlannerNode::PositionCallback(const geometry_msgs::PoseStamped& msg) {
 
   auto rot_msg = msg;
   double yaw = tf::getYaw(rot_msg.pose.orientation);
@@ -79,9 +94,10 @@ void GlobalPlannerNode::PositionCallback(
   global_planner.setPose(rot_msg.pose.position, yaw);    // TODO: call with just pose
 
   double distToGoal = global_planner.goalPos.manhattanDist(global_planner.currPos.x, global_planner.currPos.y, global_planner.currPos.z);
-  if (fileGoals.size() > 0 && (distToGoal < 1.5 || global_planner.goalIsBlocked)) {
+  if (fileGoals.size() > 0 && (distToGoal < 1.0 || global_planner.goalIsBlocked)) {
     // If there is another goal and we are either at current goal or it is blocked, we set a new goal
     if (!global_planner.goalIsBlocked) {
+      ROS_INFO("Actual travel distance: %2.2f \t Actual energy usage: %2.2f", pathLength(actualPath), pathEnergy(actualPath, global_planner.upCost));
       ROS_INFO("Reached current goal %s, %d goals left\n\n", global_planner.goalPos.asString().c_str(), (int) fileGoals.size());
     }
     Cell newGoal = fileGoals[0];
@@ -92,7 +108,6 @@ void GlobalPlannerNode::PositionCallback(
   if (numPositionMessages++ % 50 == 0) {
     rot_msg.header.frame_id = "/world";
     actualPath.poses.push_back(rot_msg);
-    ROS_INFO("Actual travel distance: %2.2f", pathLength(actualPath));
     cmd_actual_path_pub_.publish(actualPath);
   }
 }
@@ -150,20 +165,7 @@ void GlobalPlannerNode::PlanPath() {
 }
 
 void GlobalPlannerNode::PublishPath() {
-  nav_msgs::Path path;
-  path.header.frame_id="/world";
-
-  for (WaypointWithTime wp : global_planner.waypoints) {
-    geometry_msgs::PoseStamped poseMsg;
-    poseMsg.header.frame_id = "/world";
-    poseMsg.pose.position.x = wp.position[0];
-    poseMsg.pose.position.y = wp.position[1];
-    poseMsg.pose.position.z = wp.position[2];
-    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(wp.yaw); 
-    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw( (wp.yaw + 3.1415/2.0));  // 90 deg fix
-    path.poses.push_back(poseMsg);
-  }
-  cmd_global_path_pub_.publish(path);
+  cmd_global_path_pub_.publish(global_planner.pathMsg);
 }
 
 void GlobalPlannerNode::PublishExploredCells() {
@@ -178,31 +180,29 @@ void GlobalPlannerNode::PublishExploredCells() {
   msg.markers.push_back(marker);
   
   id = 1;
-  std::set<Cell>::iterator it;
-  for (it = global_planner.seen.begin(); it != global_planner.seen.end(); ++it, ++id) {
+  for (const auto cell : global_planner.seen) {
     visualization_msgs::Marker marker;
-    marker.id = id;
+    marker.id = id++;
     marker.header.frame_id = "/world";
     marker.header.stamp = ros::Time();
     marker.type = visualization_msgs::Marker::CUBE;
     marker.action = visualization_msgs::Marker::ADD;
-    marker.scale.x = 0.1;
-    marker.scale.y = marker.scale.x;
-    marker.scale.z = marker.scale.x;
-    marker.pose.position.x = it->x() + 0.5;
-    marker.pose.position.y = it->y() + 0.5;
-    marker.pose.position.z = it->z() + 0.5;
+    marker.scale.x = marker.scale.y = marker.scale.z = 0.1;
+    // TODO: Function
+    marker.pose.position.x = cell.x() + 0.5;
+    marker.pose.position.y = cell.y() + 0.5;
+    marker.pose.position.z = cell.z() + 0.5;
 
     // Just a hack to get the (almost) color spectrum depending on height
-    // h=1 -> blue    h=3 -> green  h=5 -> red
-    double h = (it->z()-1.0) / 7.0;
+    // h=0 -> blue    h=0.5 -> green  h=1 -> red
+    // double h = (cell.z()-1.0) / 7.0;                   // height from 1 to 8 meters
+    // double h = 0.5;                                    // single color (green)
+    // risk from 0% to 100%, sqrt is used to increase difference in low risk
+    double h = std::sqrt(global_planner.getRisk(cell));    
     marker.color.r = h;
     marker.color.g = 1.0 - 2.0 * std::abs(h - 0.5);
     marker.color.b = 1.0 - h;
     marker.color.a = 1.0;
-    marker.color.r = 0.0;
-    marker.color.g = 0.8;
-    marker.color.b = 0.0;
 
     msg.markers.push_back(marker);
   }
