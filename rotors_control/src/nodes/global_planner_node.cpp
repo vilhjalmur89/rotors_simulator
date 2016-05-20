@@ -204,7 +204,17 @@ void GlobalPlannerNode::PublishExploredCells() {
     marker.color.b = 1.0 - h;
     marker.color.a = 1.0;
 
-    msg.markers.push_back(marker);
+    if (global_planner.occProb.find(cell) != global_planner.occProb.end()) {
+      // Octomap has a probability for the cell
+      msg.markers.push_back(marker);
+    }
+    else {
+      // Unknown space
+      marker.color.r = 0.2;
+      marker.color.g = 0.2;
+      marker.color.b = 0.2;
+      msg.markers.push_back(marker);
+    }
   }
   cmd_explored_cells_pub_.publish(msg);
 }

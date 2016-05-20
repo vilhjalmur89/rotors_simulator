@@ -105,6 +105,11 @@ void vectorFromSkewMatrix(Eigen::Matrix3d& skew_matrix, Eigen::Vector3d* vector)
 
 
 // GLOBAL PLANNER
+
+double squared(double x) {
+  return x * x;
+}
+
 double distance(geometry_msgs::PoseStamped & a, geometry_msgs::PoseStamped & b) {
   double diffX = a.pose.position.x - b.pose.position.x;
   double diffY = a.pose.position.y - b.pose.position.y;
@@ -112,6 +117,9 @@ double distance(geometry_msgs::PoseStamped & a, geometry_msgs::PoseStamped & b) 
   return sqrt(diffX*diffX + diffY*diffY + diffZ*diffZ);
 }
 
+double interpolate(double start, double end, double ratio) {
+  return start + (end - start) * ratio;
+}
 
 double angleToRange(double angle) {
   // returns the angle in the range [-pi, pi]
@@ -119,6 +127,13 @@ double angleToRange(double angle) {
   angle -= (2*M_PI) * std::floor( angle / (2*M_PI) );
   angle -= M_PI;
   return angle;
+}
+
+double distance(const Eigen::Vector3d & a, const Eigen::Vector3d & b) {
+  double xDiff = a[0] - b[0];
+  double yDiff = a[1] - b[1];
+  double zDiff = a[2] - b[2];
+  return sqrt(squared(xDiff) + squared(yDiff) + squared(zDiff));
 }
 
 bool hasSameYawAndAltitude(const geometry_msgs::Pose& msg1,

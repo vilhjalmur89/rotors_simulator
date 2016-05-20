@@ -217,9 +217,10 @@ class GlobalPlanner {
 
   std::unordered_map<Cell, double, HashCell> occProb;
   std::unordered_map<Cell, double, HashCell> riskCache;
+  std::unordered_map<Cell, double, HashCell> seenCount;        // number of times a cell was explored in last search
   
-  std::unordered_set<Cell, HashCell> occupied;
   std::unordered_set<Cell, HashCell> seen;        // Set of cells that were explored in last search
+  std::unordered_set<Cell, HashCell> occupied;
   std::unordered_set<Cell, HashCell> pathCells;   // Set of cells that are on current path, and cannot be blocked
   nav_msgs::Path pathMsg;
   std::vector<Cell> pathBack;

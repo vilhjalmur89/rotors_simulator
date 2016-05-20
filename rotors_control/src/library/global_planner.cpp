@@ -26,6 +26,7 @@ namespace rotors_control {
 
 
 double angle(Cell pos, Cell p, double lastAng) {
+  // The XY-angle between pos and p, or lastAng if p is directly above/below pos
   int dx = p.x() - pos.x();
   int dy = p.y() - pos.y();
   if (dx == 0 && dy == 0) {
@@ -34,27 +35,12 @@ double angle(Cell pos, Cell p, double lastAng) {
   double ang = atan2(dy, dx);
   // Now ang is in the range [-Pi, Pi], but we want ang to be in [lastAng-Pi, lastAng+Pi]
   // This is because the rotor will spin a whole circle when going from 359 deg to 0 deg
-  ang -= int(((ang+M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);   // Now ang <= lastAng+Pi
-  ang -= int(((ang-M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);   // Now ang >= lastAng-Pi
+  // ang -= int(((ang+M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);   // Now ang <= lastAng+Pi
+  // ang -= int(((ang-M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);   // Now ang >= lastAng-Pi
   return ang;
 }
 
-double interpolate(double start, double end, double ratio) {
-  return start + (end - start) * ratio;
-}
-
-
-double squared(double x) {
-  return x * x;
-}
-
-double distance(const Eigen::Vector3d & a, const Eigen::Vector3d & b) {
-  double xDiff = a[0] - b[0];
-  double yDiff = a[1] - b[1];
-  double zDiff = a[2] - b[2];
-  return sqrt(squared(xDiff) + squared(yDiff) + squared(zDiff));
-}
-
+// TODO: move to Cell
 double distance2D(const Cell & a, const Cell & b) {
   // Straight-line distance disregarding the z-coordinate
   return sqrt(squared(a.x() - b.x()) + squared(a.y() - b.y()));
@@ -78,6 +64,7 @@ GlobalPlanner::~GlobalPlanner() {}
 
 
 void GlobalPlanner::calculateAccumulatedHeightPrior() {
+  // Calculate accumulatedHeightPrior[i] = sum(heightPrior[0:i])
   double sum = 0.0;
   for (double p : heightPrior) {
     sum += p;
@@ -118,11 +105,12 @@ void GlobalPlanner::goBack() {
   pathToMsg(newPath);
 }
 
+// TODO: May not need this function
 bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
   // Returns false iff current path has an obstacle
   // Going through the octomap can take more than 50 ms for 100m x 100m explored map 
 
-  bool pathIsBlocked = false;
+  bool pathIsFree = true;
   occupied.clear();
   riskCache.clear();
   octomap::AbstractOcTree* tree = octomap_msgs::msgToMap(msg);
@@ -137,7 +125,7 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
         occupied.insert(cell);
         if (cellProb > maxBailProb && pathCells.find(cell) != pathCells.end()) {
           // Cell is on path and is risky enough to abort mission
-          pathIsBlocked = true;
+          pathIsFree = false;
           printf("BAD CELL: %s \n", cell.asString().c_str());
           pathCells.clear();
         }
@@ -153,12 +141,12 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
   if (lastPath.size() > 0) {
     PathInfo newInfo = getPathInfo(lastPath, Node(lastPath[0], lastPath[0]));
     if (newInfo.risk > lastPathInfo.risk + 30) {
-      pathIsBlocked = true;
+      pathIsFree = false;
       printf("Risk increase");
     }
   }
 
-  return !pathIsBlocked;
+  return pathIsFree;
 }
 
 
@@ -178,8 +166,7 @@ bool GlobalPlanner::isNearWall(const Cell & cell) {
 }
 
 // Return just the cells
-void GlobalPlanner::getOpenNeighbors(const Cell & cell, 
-                                     std::vector<CellDistancePair> & neighbors,
+void GlobalPlanner::getOpenNeighbors(const Cell & cell, std::vector<CellDistancePair> & neighbors,
                                      bool is3D) const {
   // Fill neighbors with the 8 horizontal and 2 vertical non-occupied neigbors
   // It's long because it uses the minimum number of 'if's 
@@ -243,8 +230,7 @@ void GlobalPlanner::getOpenNeighbors(const Cell & cell,
 }
 
 
-
-// Cost function
+// The distance between two adjacent cells
 double GlobalPlanner::getEdgeDist(const Cell & u, const Cell & v) {
   int xDiff = std::abs(v.x() - u.x());
   int yDiff = std::abs(v.y() - u.y());
@@ -295,7 +281,7 @@ double GlobalPlanner::getTurnSmoothness(const Node & u, const Node & v) {
 
   int num45DegTurns;
   if ( uDiff.x() == 0 && uDiff.y() == 0 && vDiff.x() == 0 && vDiff.y() == 0) {
-    num45DegTurns = 0;    // Maintaining vertical motion is smooth
+    num45DegTurns = 0;    // Maintaining vertical motion 
   }
   else if ( (uDiff.x() == 0 && uDiff.y() == 0) || (vDiff.x() == 0 && vDiff.y() == 0)) {
     num45DegTurns = 1;    // Starting or ending vertical motion
@@ -366,7 +352,10 @@ double GlobalPlanner::getHeuristic(const Node & u, const Cell & goal) {
   heuristic += altitudeHeuristic(u.cell, goal);        // Lower bound cost due to altitude change
   heuristic += smoothnessHeuristic(u, goal);           // Lower bound cost due to turning  
   if (useRiskHeuristics){
-    heuristic += riskHeuristic(u.cell, goal);            // Risk through a straight-line path of unexplored space
+    heuristic += riskHeuristic(u.cell, goal);          // Risk through a straight-line path of unexplored space
+  }
+  if (true) {
+    heuristic += seenCount[u.cell];
   }
   return heuristic;
 }
@@ -536,7 +525,7 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   bool foundPath = false;
   double bestPathCost = inf;
   overEstimateFactor = 5.0;
-  maxIterations = 5000;
+  maxIterations = 10000;
 
   while (overEstimateFactor >= 1.03 && maxIterations > lastIterations) {
     std::vector<Cell> newPath;
@@ -695,6 +684,9 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
   Node s = Node(start, startParent);
   Node bestGoalNode;
   seen.clear();
+  seenCount.clear();
+
+  // TODO: use unordered
   std::set<Node> seenNodes;
   std::map<Node, Node> parent;
   std::map<Node, double> distance;
@@ -730,12 +722,16 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
       }
       if (newDist < oldDist) {
       // Found a better path to v, have to add v to the queue 
+        if (seenCount.find(v.cell) == seenCount.end()) {
+          seenCount[v.cell] = 0.0;
+        }
         parent[v] = u;
         distance[v] = newDist;
         // TODO: try Dynamic Weighting instead of a constant overEstimateFactor
         double overestimatedHeuristic = newDist + getHeuristic(v, t);
         // double heuristic = newDist + overEstimateFactor*distance2D(v, t);
         pq.push(std::make_pair(v, overestimatedHeuristic));
+        seenCount[v.cell] = seenCount[v.cell] + 1.0;
         seen.insert(v.cell);
       }
     }
