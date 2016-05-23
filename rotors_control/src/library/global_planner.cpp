@@ -25,36 +25,15 @@
 namespace rotors_control {
 
 
-double angle(Cell pos, Cell p, double lastAng) {
-  // The XY-angle between pos and p, or lastAng if p is directly above/below pos
-  int dx = p.x() - pos.x();
-  int dy = p.y() - pos.y();
+// Returns the XY-angle between u and v, or if v is directly above/below u, it returns lastAng 
+double angle(Cell u, Cell v, double lastAng) {
+  int dx = v.x() - u.x();
+  int dy = v.y() - u.y();
   if (dx == 0 && dy == 0) {
     return lastAng;   // Going up or down
   }
-  double ang = atan2(dy, dx);
-  // Now ang is in the range [-Pi, Pi], but we want ang to be in [lastAng-Pi, lastAng+Pi]
-  // This is because the rotor will spin a whole circle when going from 359 deg to 0 deg
-  // ang -= int(((ang+M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);   // Now ang <= lastAng+Pi
-  // ang -= int(((ang-M_PI)-lastAng)/(2*M_PI)) * (2*M_PI);   // Now ang >= lastAng-Pi
-  return ang;
+  return atan2(dy, dx);
 }
-
-// TODO: move to Cell
-double distance2D(const Cell & a, const Cell & b) {
-  // Straight-line distance disregarding the z-coordinate
-  return sqrt(squared(a.x() - b.x()) + squared(a.y() - b.y()));
-}
-
-double diagDistance2D(const Cell & a, const Cell & b) {
-  // Minimum distance on a grid where you can move diagonally
-  double dx = abs(a.x() - b.x());
-  double dy = abs(a.y() - b.y());
-  double diagCost = 1.41421356237;
-  return (dx + dy) + (diagCost - 2) * std::min(dx, dy);
-}
-
-
 
 
 GlobalPlanner::GlobalPlanner()  {
@@ -63,8 +42,9 @@ GlobalPlanner::GlobalPlanner()  {
 GlobalPlanner::~GlobalPlanner() {}
 
 
+// Fills accumulatedHeightPrior such that accumulatedHeightPrior[i] = sum(heightPrior[0:i])
+// Used to get the pior risk of vertical movement
 void GlobalPlanner::calculateAccumulatedHeightPrior() {
-  // Calculate accumulatedHeightPrior[i] = sum(heightPrior[0:i])
   double sum = 0.0;
   for (double p : heightPrior) {
     sum += p;
@@ -72,6 +52,7 @@ void GlobalPlanner::calculateAccumulatedHeightPrior() {
   }
 }
 
+// Updates the current pose and keeps track of the path back
 void GlobalPlanner::setPose(const geometry_msgs::Point & newPos, double newYaw) {
   currPos = newPos;
   currYaw = newYaw;
@@ -88,6 +69,7 @@ void GlobalPlanner::setGoal(const Cell & goal) {
   goalIsBlocked = false;
 }
 
+// Sets the current path to be the path back until a safe cell is reached
 void GlobalPlanner::goBack() {
   ROS_INFO("  GO BACK ");
   goingBack = true;
@@ -106,11 +88,10 @@ void GlobalPlanner::goBack() {
 }
 
 // TODO: May not need this function
+// Returns false iff current path has an obstacle
+// Going through the octomap can take more than 50 ms for 100m x 100m explored map 
 bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
-  // Returns false iff current path has an obstacle
-  // Going through the octomap can take more than 50 ms for 100m x 100m explored map 
-
-  bool pathIsFree = true;
+  bool currPathIsFree = true;
   occupied.clear();
   riskCache.clear();
   octomap::AbstractOcTree* tree = octomap_msgs::msgToMap(msg);
@@ -120,42 +101,45 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
       Cell cell(it.getCoordinate().x(), it.getCoordinate().y(), it.getCoordinate().z());
       double cellProb = it->getValue(); 
       occProb[cell] = cellProb;
+
       if (cellProb > maxPathProb) {
         // Cell is too risky to plan a new path through
         occupied.insert(cell);
         if (cellProb > maxBailProb && pathCells.find(cell) != pathCells.end()) {
           // Cell is on path and is risky enough to abort mission
-          pathIsFree = false;
+          currPathIsFree = false;
           printf("BAD CELL: %s \n", cell.asString().c_str());
-          pathCells.clear();
+          pathCells.clear();  // TODO: is this ok, and is it not done in truncate path?
         }
       }
+
       if (it.getSize() > 1) {
         // TODO: Need a loop for large leafs
-        // ROS_INFO("%d, %d, %d: %d %f", cell.x(), cell.y(), cell.z(), it.getSize(), it->getValue());
+        // ROS_INFO("LARGE LEAF: %d, %d, %d: %d %f", cell.x(), cell.y(), cell.z(), it.getSize(), it->getValue());
       }
     }
   }
   delete octree;
 
+  // Check if the risk of the current path has increased 
   if (lastPath.size() > 0) {
     PathInfo newInfo = getPathInfo(lastPath, Node(lastPath[0], lastPath[0]));
     if (newInfo.risk > lastPathInfo.risk + 30) {
-      pathIsFree = false;
+      currPathIsFree = false;
       printf("Risk increase");
     }
   }
-
-  return pathIsFree;
+  return currPathIsFree;
 }
 
-
+// TODO: is this needed?
 void GlobalPlanner::truncatePath() {
   pathCells.clear();
   pathMsg.poses.resize(0);
 }
 
-bool GlobalPlanner::isNearWall(const Cell & cell) {
+// Returns true if cell has an occupied neighbor 
+bool GlobalPlanner::isNearWall(const Cell & cell){
   for (Cell dir : diagonalDirections) {
     Cell neighbor = cell + dir;
     if (occupied.find(neighbor) != occupied.end()) {
@@ -165,9 +149,9 @@ bool GlobalPlanner::isNearWall(const Cell & cell) {
   return false;
 }
 
-// Return just the cells
+// TODO: simplify and return neighbors
 void GlobalPlanner::getOpenNeighbors(const Cell & cell, std::vector<CellDistancePair> & neighbors,
-                                     bool is3D) const {
+                                     bool is3D) {
   // Fill neighbors with the 8 horizontal and 2 vertical non-occupied neigbors
   // It's long because it uses the minimum number of 'if's 
   double x = cell.x();
@@ -236,55 +220,50 @@ double GlobalPlanner::getEdgeDist(const Cell & u, const Cell & v) {
   int yDiff = std::abs(v.y() - u.y());
   int zDiff = v.z() - u.z();
   int diff = xDiff + yDiff;
-  if (diff == 1) return 1.0;
-  if (diff == 2) return 1.41;
-  if (zDiff == 1) return upCost;
-  return downCost;
+  if (diff == 1) return 1.0;      // v is horizontally adjacent to u
+  if (diff == 2) return 1.41;     // v is a diagonal neighbor of u
+  if (zDiff == 1) return upCost;  // v is above u
+  return downCost;                // v is below u
 }
 
-double GlobalPlanner::getSingleCellRisk(const Cell & cell){
-  // Risk without looking at neighbors
+// Risk without looking at the neighbors
+double GlobalPlanner::getSingleCellRisk(const Cell & cell) {
   if (cell.z() < 1) {
     return 1.0;   // Octomap does not keep track of the ground
   }
   if (occProb.find(cell) != occProb.end()) {
     return octomap::probability(occProb[cell]);     // If the cell has been seen
   }
-  return explorePenalty * heightPrior[cell.z()];    // Fixed risk for unexplored cells
+  return explorePenalty * heightPrior[cell.z()];    // Risk for unexplored cells
 }
 
-double GlobalPlanner::getRisk(const Cell & cell){
-  // Computes the risk from the cell, its neighbors and the prior
-  // TODO: is vertical movement with risk worse than horizontal?
-
+// Returns the risk from the cell, its neighbors and the prior
+double GlobalPlanner::getRisk(const Cell & cell) {
   if (riskCache.find(cell) != riskCache.end()) {
     return riskCache[cell];
   }
 
   double risk = getSingleCellRisk(cell);
-
   for (Cell direction : flowDirections) {
     Cell neighbor = cell + direction;
     risk += neighborRiskFlow * getSingleCellRisk(neighbor);
   }
 
-  double prior = heightPrior[floor(cell.z())];
-  double totalRisk = risk;
-  
-  riskCache[cell] = totalRisk;  
-  return totalRisk;      
+  riskCache[cell] = risk;  
+  return risk;      
 }
 
+// Returns the amount of rotation needed to go from u to v
 double GlobalPlanner::getTurnSmoothness(const Node & u, const Node & v) {
   Cell uDiff = u.cell - u.parent;
   Cell vDiff = v.cell - v.parent;
 
   int num45DegTurns;
-  if ( uDiff.x() == 0 && uDiff.y() == 0 && vDiff.x() == 0 && vDiff.y() == 0) {
+  if (uDiff.x() == 0 && uDiff.y() == 0 && vDiff.x() == 0 && vDiff.y() == 0) {
     num45DegTurns = 0;    // Maintaining vertical motion 
   }
-  else if ( (uDiff.x() == 0 && uDiff.y() == 0) || (vDiff.x() == 0 && vDiff.y() == 0)) {
-    num45DegTurns = 1;    // Starting or ending vertical motion
+  else if ((uDiff.x() == 0 && uDiff.y() == 0) || (vDiff.x() == 0 && vDiff.y() == 0)) {
+    num45DegTurns = vertToHorCost;    // Starting or ending vertical motion
   }
   else if (uDiff.x() == -vDiff.x() && uDiff.y() == -vDiff.y()){
     num45DegTurns = 4;    // 180 degrees, the formula below doesn't work for this case 
@@ -292,10 +271,10 @@ double GlobalPlanner::getTurnSmoothness(const Node & u, const Node & v) {
   else {
     num45DegTurns = std::abs(uDiff.x() - vDiff.x()) + std::abs(uDiff.y() - vDiff.y());
   }
-  // TODO: add 1 for altitude change
-  return num45DegTurns * num45DegTurns;     // Squaring makes small turns less costly
+  return num45DegTurns * num45DegTurns;     // Squaring makes large turns more costly
 }
 
+// Returns the total cost of the edge from u to v
 double GlobalPlanner::getEdgeCost(const Node & u, const Node & v) {
   double distCost = getEdgeDist(u.cell, v.cell);
   double smoothCost = smoothFactor * getTurnSmoothness(u, v);
@@ -304,13 +283,14 @@ double GlobalPlanner::getEdgeCost(const Node & u, const Node & v) {
 }
 
 
-// Heuristic Function
+// Returns a heuristic for the cost of risk for going from u to goal
+// The heuristic is the cost of risk through unknown environment
 double GlobalPlanner::riskHeuristic(const Cell & u, const Cell & goal) {
   if (u == goal) {
     return 0.0;
   }  
   double unexploredRisk = (1.0 + 6.0 * neighborRiskFlow) * explorePenalty * riskFactor;  
-  double xyDist = diagDistance2D(u, goal) - 1.0;   // XY distance excluding the goal cell
+  double xyDist = u.diagDistance2D(goal) - 1.0;   // XY distance excluding the goal cell
   double xyRisk = xyDist * unexploredRisk * heightPrior[u.z()];
   double zRisk = std::abs(accumulatedHeightPrior[u.z()] - accumulatedHeightPrior[goal.z()]) * unexploredRisk;
   // TODO: instead of subtracting 1 from the xyDist, subtract 1 from the combined xy and z dist
@@ -318,60 +298,64 @@ double GlobalPlanner::riskHeuristic(const Cell & u, const Cell & goal) {
   return xyRisk + zRisk + goalRisk;
 }
 
+// Returns a heuristic for the cost of turning for going from u to goal
 double GlobalPlanner::smoothnessHeuristic(const Node & u, const Cell & goal) {
   if (u.cell.x() == goal.x() && u.cell.y() == goal.y()) { 
     return 0.0;     // directly above or below the goal
   }
   if (u.cell.x() == u.parent.x() && u.cell.y() == u.parent.y()) { 
-    return smoothFactor * 2.0;     // Vertical motion not directly above or below the goal
+    // Vertical motion not directly above or below the goal, must change to horizontal movement
+    return smoothFactor * vertToHorCost;     
   }
  
-  double angU = (u.cell - u.parent).angle();
-  double angGoal = (goal - u.cell).angle(); 
-  double angDiff = angGoal - angU;  
-  angDiff = std::fabs(angleToRange(angDiff));                    // positive angle difference
+  double angU = (u.cell - u.parent).angle();      // Current orientation
+  double angGoal = (goal - u.cell).angle();       // Direction of goal
+  double angDiff = angGoal - angU;
+  angDiff = std::fabs(angleToRange(angDiff));     // Rotation needed
   int num45DegTurns = std::ceil(angDiff / (M_PI/4) - 0.01);   // Minimum number of 45-turns to goal
 
-  // If there is height difference we need to change to vertical movement at least once 
+  // If there is height difference we also need to change to vertical movement at least once 
   int altitudeChange = u.cell.z() == goal.z() ? 0 : 1;
 
   return smoothFactor * (num45DegTurns + altitudeChange);
 }
 
+// Returns a heuristic for the cost of reaching the altitude of goal
 double GlobalPlanner::altitudeHeuristic(const Cell & u, const Cell & goal) {
-  // Minimum cost for changing altitude
   double diff = goal.z() - u.z();
   // Either multiply by upCost or downCost, depending on if we are belove or above the goal
   double cost = diff > 0 ? upCost * std::abs(diff) : downCost * std::abs(diff);
   return cost;
 }
 
+// Returns a heuristic of going from u to goal
 double GlobalPlanner::getHeuristic(const Node & u, const Cell & goal) {
   // Only overestimate the distance
-  double heuristic = overEstimateFactor * diagDistance2D(u.cell, goal);
+  double heuristic = overEstimateFactor * u.cell.diagDistance2D(goal);
   heuristic += altitudeHeuristic(u.cell, goal);        // Lower bound cost due to altitude change
   heuristic += smoothnessHeuristic(u, goal);           // Lower bound cost due to turning  
   if (useRiskHeuristics){
     heuristic += riskHeuristic(u.cell, goal);          // Risk through a straight-line path of unexplored space
   }
-  if (true) {
+  if (useSpeedUpHeuristics) {
     heuristic += seenCount[u.cell];
   }
   return heuristic;
 }
 
- geometry_msgs::PoseStamped GlobalPlanner::createPoseMsg(double x, double y, double z, double yaw) {
-    geometry_msgs::PoseStamped poseMsg;
-    poseMsg.header.frame_id="/world";
-    poseMsg.pose.position.x = x;
-    poseMsg.pose.position.y = y;
-    poseMsg.pose.position.z = z;
-    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
-    poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(yaw + 3.1415/2.0);  // 90 deg fix
-    return poseMsg;
- }
+geometry_msgs::PoseStamped GlobalPlanner::createPoseMsg(double x, double y, double z, double yaw) {
+  geometry_msgs::PoseStamped poseMsg;
+  poseMsg.header.frame_id="/world";
+  poseMsg.pose.position.x = x;
+  poseMsg.pose.position.y = y;
+  poseMsg.pose.position.z = z;
+  poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(yaw);
+  poseMsg.pose.orientation = tf::createQuaternionMsgFromYaw(yaw + 3.1415/2.0);  // 90 deg fix
+  return poseMsg;
+}
 
-void GlobalPlanner::pathToMsg(std::vector<Cell> & path) {
+// TODO: Return msg?
+void GlobalPlanner::pathToMsg(const std::vector<Cell> & path) {
   pathMsg.header.frame_id="/world";
   pathMsg.poses.resize(0);
 
@@ -390,20 +374,18 @@ void GlobalPlanner::pathToMsg(std::vector<Cell> & path) {
 
     pathCells.insert(p);
     if (p.x() != lastP.x() && p.y() != lastP.y()) {
-      // For diagonal edges we need the two common neighbors of p and lastP to non occupied
+      // For diagonal edges we need the two common neighbors of p and lastP to be non occupied
       pathCells.insert(Cell(p.x(), lastP.y(), p.z()));
       pathCells.insert(Cell(lastP.x(), p.y(), p.z()));
     }
   }
-  Cell lastPoint = path[path.size()-1];   // Last point has the same yaw as the previous point
+  Cell lastPoint = path[path.size()-1];   // Last point should have the same yaw as the previous point
   pathMsg.poses.push_back(createPoseMsg(lastPoint.x()+0.5, lastPoint.y()+0.5, lastPoint.z()+0.5, lastYaw));
-  goalPos = lastPoint;
-
-  // increaseResolution(2.0, 10, 1000);
-  // increaseResolution(0.3, 0.05, 0.1 * kNanoSecondsInSecond);
+  goalPos = lastPoint;  // TODO: Why is this here?
 }
 
-
+// Returns details of the cost of the path
+// TODO: should not depend on startNode
 PathInfo GlobalPlanner::getPathInfo(const std::vector<Cell> & path, const Node startNode) {
   Node lastNode = startNode;
   PathInfo pathInfo = {};
@@ -479,7 +461,7 @@ void GlobalPlanner::printPathStats(const std::vector<Cell> & path,
     totalRiskCost -= edgeR;
     totalSmoothCost -= edgeS;
 
-    double distHeuristic = diagDistance2D(currNode.cell, goal);           // Lower bound for distance on a grid 
+    double distHeuristic = currNode.cell.diagDistance2D(goal);           // Lower bound for distance on a grid 
     double riskH = riskHeuristic(currNode.cell, goal);
     double altHeuristic = altitudeHeuristic(currNode.cell, goal);         // Lower bound cost due to altitude change
     double smoothHeuristic = smoothnessHeuristic(currNode, goal);  
@@ -508,17 +490,18 @@ void GlobalPlanner::printPathStats(const std::vector<Cell> & path,
 }
 
 
-// TODO: Run search backwards to quickly find impossible scenarios
+// TODO: Run search backwards to quickly find impossible scenarios and/or find exact heuristics for nodes close to goal
 // bool GlobalPlanner::isGoalBlocked() { }
 
+
+// Calls different search functions to find a path 
 bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
-  Cell s = Cell(currPos.x + currVel.x, currPos.y + currVel.y, currPos.z + currVel.z);
+  Cell s = Cell(currPos.x + searchTime * currVel.x, 
+                currPos.y + searchTime * currVel.y, 
+                currPos.z + searchTime * currVel.z);
   Cell t = goalPos;
-  Cell parent = s.getNeighborFromYaw(currYaw + M_PI); // The cell behind the start cell
-  
-  // Plan from the cell in front 
-  // Cell parent = s;
-  // s = s.getNeighborFromYaw(currYaw);             
+  Cell parentOfS = s.getNeighborFromYaw(currYaw + M_PI); // The cell behind the start cell
+      
   ROS_INFO("Planning a path from %s to %s", s.asString().c_str(), t.asString().c_str());
   ROS_INFO("currPos: %2.2f,%2.2f,%2.2f\t s: %2.2f,%2.2f,%2.2f", 
                       currPos.x, currPos.y, currPos.z, s.x()+0.5, s.y()+0.5, s.z()+0.5);
@@ -534,11 +517,11 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
       foundNewPath = FindPathOld(newPath, s, t, true);  // No need to search with smoothness
     } 
     else {
-      foundNewPath = FindSmoothPath(newPath, s, t, parent);
+      foundNewPath = FindSmoothPath(newPath, s, t, parentOfS);
     }
 
     if (foundNewPath) {
-      PathInfo pathInfo = getPathInfo(newPath, Node(s, parent));
+      PathInfo pathInfo = getPathInfo(newPath, Node(s, parentOfS));
       printf("(cost: %2.2f, dist: %2.2f, risk: %2.2f, smooth: %2.2f) \n", pathInfo.cost, pathInfo.dist, pathInfo.risk, pathInfo.smoothness);
       if (pathInfo.cost < bestPathCost) {
         bestPathCost = pathInfo.cost;
@@ -560,13 +543,14 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   }
 
   if (foundPath) {
-    lastPathInfo = getPathInfo(path, Node(s, parent));
+    lastPathInfo = getPathInfo(path, Node(s, parentOfS));
     lastPath = path;
   }
 
   return foundPath;
 }
 
+// Searches for a path from s to t at maxHeight, fills path if it finds one
 bool GlobalPlanner::Find2DPath(std::vector<Cell> & path, const Cell & s, Cell t) {
   std::vector<Cell> upPath;
   bool foundUpPath = FindPathOld(upPath, s, Cell(s.x(), s.y(), maxHeight), true);
@@ -589,9 +573,9 @@ bool GlobalPlanner::Find2DPath(std::vector<Cell> & path, const Cell & s, Cell t)
   return false;
 }
 
+// A* to find a path from s to t, true iff it found a path
 bool GlobalPlanner::FindPathOld(std::vector<Cell> & path, const Cell & s, 
                                 const Cell t, bool is3D) {
-  // A* to find a path from currPos to goalPos, true iff it found a path
 
   // Initialize containers
   seen.clear();
@@ -623,7 +607,7 @@ bool GlobalPlanner::FindPathOld(std::vector<Cell> & path, const Cell & s,
     getOpenNeighbors(u, neighbors, is3D);
     for (auto cellDistV : neighbors) {
       Cell v = cellDistV.first;
-      double costOfEdge = cellDistV.second;
+      double costOfEdge = cellDistV.second;   // Use getEdgeCost
       double risk = riskFactor * getRisk(v);
       if (risk > maxCellRisk && v != t) {
         continue;
@@ -638,13 +622,13 @@ bool GlobalPlanner::FindPathOld(std::vector<Cell> & path, const Cell & s,
         parent[v] = u;
         distance[v] = newDist;
         // TODO: try Dynamic Weighting in stead of a constant overEstimateFactor
-        double heuristic = diagDistance2D(v, t);                // Lower bound for distance on a grid 
+        double heuristic = v.diagDistance2D(t);                // Lower bound for distance on a grid 
         heuristic += upCost * std::max(0, t.z() - v.z());       // Minumum cost for increasing altitude
         heuristic += std::max(0, v.z() - t.z());                // Minumum cost for decreasing altitude
         // if (isNearWall(v)) {
         //   heuristic -= 10;
         // }
-        // if (diagDistance2D(v, t) < minDistHeuristic) {
+        // if (v.diagDistance2D(t) < minDistHeuristic) {
         //   heuristic -= 20;
         // }
         double overestimatedHeuristic = newDist + overEstimateFactor * heuristic;
@@ -668,17 +652,15 @@ bool GlobalPlanner::FindPathOld(std::vector<Cell> & path, const Cell & s,
   std::reverse(path.begin(),path.end());
 
   lastIterations = numIter;
-  lastPathCost = distance[t];
   // ROS_INFO("Found path with %d iterations, itDistSquared: %.3f", numIter, numIter / squared(path.size()));
-  printf("overEstimateFactor: %2.2f, \t numIter: %d \t path cost: %2.2f \t", overEstimateFactor, numIter, lastPathCost);
+  printf("overEstimateFactor: %2.2f, \t numIter: %d \t path cost: %2.2f \t", overEstimateFactor, numIter, distance[t]);
   
   return true;
 }  
 
+// A* to find a path from start to t, true iff it found a path
 bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start, 
                                    const Cell & t, const Cell & startParent) {
-
-  // A* to find a path from currPos to goalPos, true iff it found a path
 
   // Initialize containers
   Node s = Node(start, startParent);
@@ -704,11 +686,11 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
       continue;
     }
     seenNodes.insert(u);
-    numIter++;
     if (u.cell == t) {
       bestGoalNode = u;
       break;  // Found a path
     }
+    numIter++;
 
     std::vector<CellDistancePair> neighbors;
     getOpenNeighbors(u.cell, neighbors, true);
@@ -729,9 +711,8 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
         distance[v] = newDist;
         // TODO: try Dynamic Weighting instead of a constant overEstimateFactor
         double overestimatedHeuristic = newDist + getHeuristic(v, t);
-        // double heuristic = newDist + overEstimateFactor*distance2D(v, t);
-        pq.push(std::make_pair(v, overestimatedHeuristic));
-        seenCount[v.cell] = seenCount[v.cell] + 1.0;
+        pq.push(NodeDistancePair(v, overestimatedHeuristic));
+        seenCount[v.cell] += 1.0;
         seen.insert(v.cell);
       }
     }
@@ -740,31 +721,30 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
   if (bestGoalNode.cell != t) {
     return false;   // No path found
   }
-  // printf("Average iteration time: %f ms \n", (std::clock() - startTime) / (double)(CLOCKS_PER_SEC / 1000) / numIter);
+  printf("Average iteration time: %f ms \n", (std::clock() - startTime) / (double)(CLOCKS_PER_SEC / 1000) / numIter);
 
   // Get the path by walking from t back to s (excluding s)
+  // TODO: function
   Node walker = bestGoalNode;
   while (walker != s) {
-    // printf("dist[%s] = %2.2f\n", walker.cell.asString().c_str(), distance[walker]);
     path.push_back(walker.cell);
     walker = parent[walker];
   }
-  // printf("dist[%s] = %2.2f\n", walker.cell.asString().c_str(), distance[walker]);
   std::reverse(path.begin(),path.end());
+
   // printPathStats(path, startParent, start, t, distance[bestGoalNode], distance);
   lastIterations = numIter;
-  lastPathCost = distance[bestGoalNode];
   // ROS_INFO("Found path with %d iterations, itDistSquared: %.3f", numIter, numIter / squared(path.size()));
-  printf("overEstimateFactor: %2.2f, \t numIter: %d \t path cost: %2.2f \t", overEstimateFactor, numIter, lastPathCost);
+  printf("overEstimateFactor: %2.2f, \t numIter: %d \t path cost: %2.2f \t", overEstimateFactor, numIter, distance[bestGoalNode]);
   
   return true;
 }
 
+// Returns true iff a path needs to be published, either a new path or a path back
+// The path is then stored in this.pathMsg
 bool GlobalPlanner::getGlobalPath() {
-  // true iff a path needs to be published, either a new path or a path back
-  // The path is then stored in this.pathMsg
   Cell s = Cell(currPos);
-  Cell t = Cell(goalPos.x(), goalPos.y(), 2);
+  Cell t = Cell(goalPos);
   
   if (occupied.find(t) != occupied.end()) {
     // If goal is occupied, no path is published
@@ -787,10 +767,6 @@ bool GlobalPlanner::getGlobalPath() {
       goalIsBlocked = true;
       return false;
     }
-    // std::vector<Cell> path2;
-    // useRiskHeuristics = false;
-    // FindPath(path2);
-    // useRiskHeuristics = true;
     pathToMsg(path);
     return true;
   }

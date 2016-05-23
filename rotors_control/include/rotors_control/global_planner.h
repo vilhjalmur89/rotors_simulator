@@ -92,6 +92,19 @@ class Cell {
     return std::abs(x()+0.5 - _x) + std::abs(y()+0.5 - _y) + std::abs(z()+0.5 - _z);
   }
 
+  double distance2D(const Cell & b) const {
+    // Straight-line distance disregarding the z-coordinate
+    return sqrt(squared(x() - b.x()) + squared(y() - b.y()));
+  }
+
+  double diagDistance2D(const Cell & b) const {
+    // Minimum distance on the XY-grid where you can move diagonally
+    double dx = abs(x() - b.x());
+    double dy = abs(y() - b.y());
+    double diagCost = 1.41421356237;
+    return (dx + dy) + (diagCost - 2) * std::min(dx, dy);
+  }
+
   double angle() {
     return atan2(y(), x());
   }
@@ -222,6 +235,8 @@ class GlobalPlanner {
   std::unordered_set<Cell, HashCell> seen;        // Set of cells that were explored in last search
   std::unordered_set<Cell, HashCell> occupied;
   std::unordered_set<Cell, HashCell> pathCells;   // Set of cells that are on current path, and cannot be blocked
+
+  // TODO: rename and remove not needed
   nav_msgs::Path pathMsg;
   std::vector<Cell> pathBack;
   geometry_msgs::Point currPos;
@@ -229,26 +244,29 @@ class GlobalPlanner {
   geometry_msgs::Vector3 currVel;
   Cell goalPos = Cell(0, 0, 3);
   bool goingBack = true;      // we start by just finding the start position
+
   double overEstimateFactor = 4.0;
   int minHeight = 1;
   int maxHeight = 10;
   double maxPathProb = 0.0;
-  double maxBailProb = 1.0;
+  double maxBailProb = 1.0; // Must be >= 0 (50%) because of the fixed uniform prior in OctoMap
   double maxCellRisk = 20.0;
-  double inf = std::numeric_limits<double>::infinity();
-  int maxIterations = 2000;
-  int lastIterations = 0;
-  std::vector<Cell> lastPath;
-  double lastPathCost = 0.0;
-  PathInfo lastPathInfo;
   double smoothFactor = 2.0;
+  double vertToHorCost = 1.0; // The cost of changing between vertical and horizontal motion
   double riskFactor = 50.0;
   double neighborRiskFlow = 0.2;
   double explorePenalty = 0.015;
   double upCost = 3.0;
   double downCost = 1.0;
+  double searchTime = 1.0;  // The time it takes to find a path in worst case
+  double inf = std::numeric_limits<double>::infinity();
+  int maxIterations = 2000;
+  int lastIterations = 0;
+  std::vector<Cell> lastPath;   // should be currPath
+  PathInfo lastPathInfo;
   bool goalIsBlocked = false;
   bool useRiskHeuristics = true;
+  bool useSpeedUpHeuristics = true;
 
   GlobalPlanner();
   ~GlobalPlanner();
@@ -260,9 +278,8 @@ class GlobalPlanner {
   void increaseResolution(double minDist, double minRot, double minTime);
   void truncatePath();
   bool isNearWall(const Cell & cell);
-  void getOpenNeighbors(const Cell & cell, 
-                        std::vector<CellDistancePair> & neighbors,
-                        bool is3D) const;
+  void getOpenNeighbors(const Cell & cell, std::vector<CellDistancePair> & neighbors,
+                        bool is3D);
 
   double getEdgeDist(const Cell & u, const Cell & v);
   double getSingleCellRisk(const Cell & cell);
@@ -276,7 +293,7 @@ class GlobalPlanner {
   double getHeuristic(const Node & u, const Cell & goal);
   
   geometry_msgs::PoseStamped createPoseMsg(double x, double y, double z, double yaw);
-  void pathToMsg(std::vector<Cell> & path);
+  void pathToMsg(const std::vector<Cell> & path);
   void goBack();
 
   PathInfo getPathInfo(const std::vector<Cell> & path, const Node lastNode);
