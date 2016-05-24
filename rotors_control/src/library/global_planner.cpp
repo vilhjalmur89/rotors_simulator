@@ -70,13 +70,14 @@ void GlobalPlanner::setGoal(const Cell & goal) {
 }
 
 // Sets the current path to be the path back until a safe cell is reached
+// Then the mission can be tried again or a new mission can be set
 void GlobalPlanner::goBack() {
   ROS_INFO("  GO BACK ");
   goingBack = true;
   std::vector<Cell> newPath = pathBack;
   std::reverse(newPath.begin(), newPath.end());
 
-  // Follow the path back until the risk is low, then a new mission will be started
+  // Follow the path back until the risk is low
   for (int i=1; i < newPath.size()-1; ++i){
     if (i > 5 && getRisk(newPath[i]) < 0.5) {
       newPath.resize(i+1);
@@ -115,7 +116,7 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
 
       if (it.getSize() > 1) {
         // TODO: Need a loop for large leafs
-        // ROS_INFO("LARGE LEAF: %d, %d, %d: %d %f", cell.x(), cell.y(), cell.z(), it.getSize(), it->getValue());
+        printf("LARGE LEAF: %d, %d, %d: %d %f", cell.x(), cell.y(), cell.z(), it.getSize(), it->getValue());
       }
     }
   }
@@ -232,7 +233,8 @@ double GlobalPlanner::getSingleCellRisk(const Cell & cell) {
     return 1.0;   // Octomap does not keep track of the ground
   }
   if (occProb.find(cell) != occProb.end()) {
-    return octomap::probability(occProb[cell]);     // If the cell has been seen
+    // TODO: update in log-space
+    return posterior(heightPrior[cell.z()], octomap::probability(occProb[cell]));     // If the cell has been seen
   }
   return explorePenalty * heightPrior[cell.z()];    // Risk for unexplored cells
 }
@@ -278,7 +280,7 @@ double GlobalPlanner::getTurnSmoothness(const Node & u, const Node & v) {
 double GlobalPlanner::getEdgeCost(const Node & u, const Node & v) {
   double distCost = getEdgeDist(u.cell, v.cell);
   double smoothCost = smoothFactor * getTurnSmoothness(u, v);
-  double riskCost = riskFactor * getRisk(v.cell);
+  double riskCost = riskFactor * getRisk(v.cell);   // TODO: multiply with edge length
   return distCost + riskCost + smoothCost;
 }
 
@@ -589,7 +591,7 @@ bool GlobalPlanner::FindPathOld(std::vector<Cell> & path, const Cell & s,
 
   std::clock_t    startTime;
   startTime = std::clock();
-  // Search until all reachable cells have been found, run out of time or t is found,
+  // Search until all reachable cells have been found, it runs out of time or t is found,
   while (!pq.empty() && numIter < maxIterations) {
     CellDistancePair cellDistU = pq.top(); pq.pop();
     Cell u = cellDistU.first;
