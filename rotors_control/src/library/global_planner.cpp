@@ -736,6 +736,7 @@ bool GlobalPlanner::FindSmoothPath(std::vector<Cell> & path, const Cell & start,
     path.push_back(walker.cell);
     walker = parent[walker];
   }
+  path.push_back(walker.cell);
   std::reverse(path.begin(),path.end());
 
   // printPathStats(path, startParent, start, t, distance[bestGoalNode], distance);
