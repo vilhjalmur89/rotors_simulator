@@ -48,60 +48,45 @@
 
 namespace rotors_control {
 
-class WaypointWithTime {
- public:
-  WaypointWithTime()
-      : waiting_time(0) {
-  }
-  WaypointWithTime(double t, float x, float y, float z, float _yaw)
-      : position(x, y, z), yaw(_yaw), waiting_time(t) {
-  }
-  WaypointWithTime(double t, Eigen::Vector3d pos, float _yaw)
-      : position(pos), yaw(_yaw), waiting_time(t) {
-  }
-
-  Eigen::Vector3d position;
-  double yaw;
-  double waiting_time;
-};
-
 
 // TODO: tunable resolution
+// TODO: move to own file
 class Cell {
  public:
-  Cell()
-      : tpl(0,0,0) {
-  }
-  Cell(double x, double y)
-      : tpl(floor(x), floor(y), 0) {
-  }
+  Cell(std::tuple<int, int, int> newTpl)
+    : tpl(newTpl) {}
   Cell(double x, double y, double z)
-      : tpl(floor(x), floor(y), floor(z)) {
-  }
-  Cell(geometry_msgs::Point point)
-      : tpl(floor(point.x), floor(point.y), floor(point.z))  {
-  }
-  Cell(Eigen::Vector3d point)
-      : tpl(floor(point[0]), floor(point[1]), floor(point[2]))  {
-  }
+    : tpl(floor(x / scale), floor(y / scale), floor(z / scale)) {}
+  Cell() 
+    : Cell(0.0, 0.0, 0.0) {}
+  Cell(double x, double y) 
+    : Cell(x, y, 0.0) {}
+  Cell(geometry_msgs::Point point) 
+    : Cell(point.x, point.y, point.z) {}
+  Cell(Eigen::Vector3d point) 
+    : Cell(point[0], point[1], point[2])  {}
 
   int x() const {return std::get<0>(tpl);}
   int y() const {return std::get<1>(tpl);}
   int z() const {return std::get<2>(tpl);}
 
+  double xPos() const {return scale * x() + scale * 0.5;}
+  double yPos() const {return scale * y() + scale * 0.5;}
+  double zPos() const {return scale * z() + scale * 0.5;}
+
   double manhattanDist(double _x, double _y, double _z) const {
-    return std::abs(x()+0.5 - _x) + std::abs(y()+0.5 - _y) + std::abs(z()+0.5 - _z);
+    return std::abs(xPos() - _x) + std::abs(yPos() - _y) + std::abs(zPos() - _z);
   }
 
   double distance2D(const Cell & b) const {
     // Straight-line distance disregarding the z-coordinate
-    return sqrt(squared(x() - b.x()) + squared(y() - b.y()));
+    return sqrt(squared(xPos() - b.xPos()) + squared(yPos() - b.yPos()));
   }
 
   double diagDistance2D(const Cell & b) const {
     // Minimum distance on the XY-grid where you can move diagonally
-    double dx = abs(x() - b.x());
-    double dy = abs(y() - b.y());
+    double dx = abs(xPos() - b.xPos());
+    double dy = abs(yPos() - b.yPos());
     double diagCost = 1.41421356237;
     return (dx + dy) + (diagCost - 2) * std::min(dx, dy);
   }
@@ -113,10 +98,28 @@ class Cell {
   Cell getNeighborFromYaw(double yaw) {
     // Returns the neighboring cell in the yaw direction
     // E.g. if yaw == PI/4, then it returns Cell(x+1, y+1, z)
-    int xDiff = 2*std::cos(yaw);
-    int yDiff = 2*std::sin(yaw);
+    int xDiff = 2 * scale * std::cos(yaw);
+    int yDiff = 2 * scale * std::sin(yaw);
     ROS_INFO("parent: %d %d \n", xDiff, yDiff);
-    return Cell(x() + xDiff, y() + yDiff, z());
+    return Cell(xPos() + xDiff, yPos() + yDiff, zPos());
+  }
+
+  std::vector<Cell> getFlowNeighbors() const {
+    return std::vector<Cell>{Cell(std::tuple<int,int,int>(x() + 1, y(), z())),  
+                             Cell(std::tuple<int,int,int>(x() - 1, y(), z())),  
+                             Cell(std::tuple<int,int,int>(x(), y() + 1, z())),  
+                             Cell(std::tuple<int,int,int>(x(), y() - 1, z())),  
+                             Cell(std::tuple<int,int,int>(x(), y(), z() + 1)),  
+                             Cell(std::tuple<int,int,int>(x(), y(), z() - 1))
+                            };
+  }
+
+  std::vector<Cell> getDiagonalNeighbors() const {
+    return std::vector<Cell>{Cell(std::tuple<int,int,int>(x() + 1, y() + 1, z())),
+                             Cell(std::tuple<int,int,int>(x() - 1, y() + 1, z())),
+                             Cell(std::tuple<int,int,int>(x() + 1, y() - 1, z())),
+                             Cell(std::tuple<int,int,int>(x() - 1, y() - 1, z()))
+                            };
   }
 
   std::string asString() const {  
@@ -125,14 +128,16 @@ class Cell {
   }
 
   std::tuple<int, int, int> tpl;
+  static constexpr double scale = 1.0;
+
 };
 
-inline bool operator==(const Cell& lhs, const Cell& rhs) {return lhs.tpl == rhs.tpl;}
-inline bool operator!=(const Cell& lhs, const Cell& rhs) {return !operator==(lhs,rhs);}
-inline bool operator< (const Cell& lhs, const Cell& rhs) {return lhs.tpl < rhs.tpl;}
-inline bool operator> (const Cell& lhs, const Cell& rhs) {return  operator< (rhs,lhs);}
-inline bool operator<=(const Cell& lhs, const Cell& rhs) {return !operator> (lhs,rhs);}
-inline bool operator>=(const Cell& lhs, const Cell& rhs) {return !operator< (lhs,rhs);}
+inline bool operator==(const Cell & lhs, const Cell & rhs) {return lhs.tpl == rhs.tpl;}
+inline bool operator!=(const Cell & lhs, const Cell & rhs) {return !operator==(lhs,rhs);}
+inline bool operator< (const Cell & lhs, const Cell & rhs) {return lhs.tpl < rhs.tpl;}
+inline bool operator> (const Cell & lhs, const Cell & rhs) {return  operator< (rhs,lhs);}
+inline bool operator<=(const Cell & lhs, const Cell & rhs) {return !operator> (lhs,rhs);}
+inline bool operator>=(const Cell & lhs, const Cell & rhs) {return !operator< (lhs,rhs);}
 
 inline Cell operator+(const Cell& lhs, const Cell& rhs) {
   Cell res(lhs.x() + rhs.x(), lhs.y() + rhs.y(), lhs.z() + rhs.z());
@@ -146,13 +151,9 @@ inline Cell operator-(const Cell& lhs, const Cell& rhs) {
 typedef std::pair<Cell, double> CellDistancePair;
 
 struct HashCell {
-    size_t operator()(const Cell &cell ) const
+    size_t operator()(const Cell & cell ) const
     {
-        std::string s = "";
-        s += cell.x();
-        s += cell.y();
-        s += cell.z();
-        return std::hash<std::string>()(s);
+        return std::hash<std::string>()(cell.asString());
     }
 };
 
@@ -226,10 +227,8 @@ class GlobalPlanner {
   // Needed to quickly estimate the risk of vertical movement
   std::vector<double> accumulatedHeightPrior; // accumulatedHeightPrior[i] = sum(heightPrior[0:i])
   
-  std::vector<Cell> flowDirections {Cell(1,0,0), Cell(-1,0,0), Cell(0,1,0), Cell(0,-1,0), Cell(0,0,1), Cell(0,0,-1)};
-  std::vector<Cell> diagonalDirections {Cell(1,1,0), Cell(-1,1,0), Cell(1,-1,0), Cell(-1,-1,0)};
 
-  std::unordered_map<Cell, double, HashCell> occProb;
+  std::unordered_map<Cell,  double, HashCell> occProb;
   std::unordered_map<Cell, double, HashCell> riskCache;
   std::unordered_map<Cell, double, HashCell> seenCount;        // number of times a cell was explored in last search
   
@@ -243,23 +242,23 @@ class GlobalPlanner {
   geometry_msgs::Point currPos;
   double currYaw;
   geometry_msgs::Vector3 currVel;
-  Cell goalPos = Cell(0, 0, 3);
-  bool goingBack = true;      // we start by just finding the start position
+  Cell goalPos = Cell(0.0, 0.0, 3.0);
+  bool goingBack = true;        // we start by just finding the start position
 
   double overEstimateFactor = 4.0;
   int minHeight = 1;
   int maxHeight = 10;
   double maxPathProb = 0.0;
-  double maxBailProb = 1.0; // Must be >= 0 (50%) because of the fixed uniform prior in OctoMap
+  double maxBailProb = 1.0;     // Must be >= 0 (50%) because of the fixed uniform prior in OctoMap
   double maxCellRisk = 20.0;
   double smoothFactor = 2.0;
-  double vertToHorCost = 1.0; // The cost of changing between vertical and horizontal motion
+  double vertToHorCost = 1.0;   // The cost of changing between vertical and horizontal motion
   double riskFactor = 50.0;
   double neighborRiskFlow = 0.2;
   double explorePenalty = 0.015;
   double upCost = 3.0;
   double downCost = 1.0;
-  double searchTime = 1.0;  // The time it takes to find a path in worst case
+  double searchTime = 1.0;      // The time it takes to find a path in worst case
   double inf = std::numeric_limits<double>::infinity();
   int maxIterations = 2000;
   int lastIterations = 0;

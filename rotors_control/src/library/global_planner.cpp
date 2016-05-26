@@ -80,8 +80,8 @@ void GlobalPlanner::goBack() {
   // Follow the path back until the risk is low
   for (int i=1; i < newPath.size()-1; ++i){
     if (i > 5 && getRisk(newPath[i]) < 0.5) {
-      newPath.resize(i+1);
-      pathBack.resize(pathBack.size()-i-2);
+      newPath.resize(i+1);                    // newPath is the last i+1 positions of pathBack
+      pathBack.resize(pathBack.size()-i-2);   // Remove part of pathBack that is also in newPath
       break;
     }    
   }
@@ -114,9 +114,9 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
         }
       }
 
-      if (it.getSize() > 1) {
+      if (it.getSize() > 2) {
         // TODO: Need a loop for large leafs
-        printf("LARGE LEAF: %d, %d, %d: %d %f", cell.x(), cell.y(), cell.z(), it.getSize(), it->getValue());
+        printf("LARGE LEAF: %d, %d, %d: %2.3f %2.3f", cell.xPos(), cell.yPos(), cell.zPos(), it.getSize(), it->getValue());
       }
     }
   }
@@ -125,7 +125,7 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
   // Check if the risk of the current path has increased 
   if (lastPath.size() > 0) {
     PathInfo newInfo = getPathInfo(lastPath, Node(lastPath[0], lastPath[0]));
-    if (newInfo.risk > lastPathInfo.risk + 30) {
+    if (newInfo.risk > lastPathInfo.risk + 10) {
       currPathIsFree = false;
       printf("Risk increase");
     }
@@ -141,8 +141,7 @@ void GlobalPlanner::truncatePath() {
 
 // Returns true if cell has an occupied neighbor 
 bool GlobalPlanner::isNearWall(const Cell & cell){
-  for (Cell dir : diagonalDirections) {
-    Cell neighbor = cell + dir;
+  for (Cell neighbor : cell.getDiagonalNeighbors()) {
     if (occupied.find(neighbor) != occupied.end()) {
       return true;
     }
@@ -158,16 +157,16 @@ void GlobalPlanner::getOpenNeighbors(const Cell & cell, std::vector<CellDistance
   double x = cell.x();
   double y = cell.y();
   double z = cell.z();
-  Cell forw = Cell(x+1, y, z);
-  Cell back = Cell(x-1, y, z);
-  Cell left = Cell(x, y-1, z);
-  Cell righ = Cell(x, y+1, z);
-  Cell forwLeft = Cell(x+1, y-1, z);
-  Cell forwRigh = Cell(x+1, y+1, z);
-  Cell backLeft = Cell(x-1, y-1, z);
-  Cell backRigh = Cell(x-1, y+1, z);
-  Cell up = Cell(x, y, z+1);
-  Cell down = Cell(x, y, z-1);
+  Cell forw = Cell(std::tuple<int,int,int>(x+1, y, z));
+  Cell back = Cell(std::tuple<int,int,int>(x-1, y, z));
+  Cell left = Cell(std::tuple<int,int,int>(x, y-1, z));
+  Cell righ = Cell(std::tuple<int,int,int>(x, y+1, z));
+  Cell forwLeft = Cell(std::tuple<int,int,int>(x+1, y-1, z));
+  Cell forwRigh = Cell(std::tuple<int,int,int>(x+1, y+1, z));
+  Cell backLeft = Cell(std::tuple<int,int,int>(x-1, y-1, z));
+  Cell backRigh = Cell(std::tuple<int,int,int>(x-1, y+1, z));
+  Cell up = Cell(std::tuple<int,int,int>(x, y, z+1));
+  Cell down = Cell(std::tuple<int,int,int>(x, y, z-1));
 
   bool forwOpen = occupied.find(forw) == occupied.end();
   bool backOpen = occupied.find(back) == occupied.end();
@@ -221,10 +220,10 @@ double GlobalPlanner::getEdgeDist(const Cell & u, const Cell & v) {
   int yDiff = std::abs(v.y() - u.y());
   int zDiff = v.z() - u.z();
   int diff = xDiff + yDiff;
-  if (diff == 1) return 1.0;      // v is horizontally adjacent to u
-  if (diff == 2) return 1.41;     // v is a diagonal neighbor of u
-  if (zDiff == 1) return upCost;  // v is above u
-  return downCost;                // v is below u
+  if (diff == 1) return v.scale;      // v is horizontally adjacent to u
+  if (diff == 2) return 1.41 * v.scale;     // v is a diagonal neighbor of u
+  if (zDiff == 1) return upCost * v.scale;  // v is above u
+  return downCost * v.scale;                // v is below u
 }
 
 // Risk without looking at the neighbors
@@ -234,7 +233,8 @@ double GlobalPlanner::getSingleCellRisk(const Cell & cell) {
   }
   if (occProb.find(cell) != occProb.end()) {
     // TODO: update in log-space
-    return posterior(heightPrior[cell.z()], octomap::probability(occProb[cell]));     // If the cell has been seen
+    // return posterior(heightPrior[cell.z()], octomap::probability(occProb[cell]));     // If the cell has been seen
+    return posterior(0.12, octomap::probability(occProb[cell]));     // If the cell has been seen
   }
   return explorePenalty * heightPrior[cell.z()];    // Risk for unexplored cells
 }
@@ -246,8 +246,7 @@ double GlobalPlanner::getRisk(const Cell & cell) {
   }
 
   double risk = getSingleCellRisk(cell);
-  for (Cell direction : flowDirections) {
-    Cell neighbor = cell + direction;
+  for (Cell neighbor : cell.getFlowNeighbors()) {
     risk += neighborRiskFlow * getSingleCellRisk(neighbor);
   }
 
@@ -370,19 +369,19 @@ void GlobalPlanner::pathToMsg(const std::vector<Cell> & path) {
     Cell lastP = path[i-1];
     double newYaw = angle(p, path[i+1], lastYaw);
     // if (newYaw != lastYaw) {   // only publish corner points
-      pathMsg.poses.push_back(createPoseMsg(p.x()+0.5, p.y()+0.5, p.z()+0.5, newYaw));
+      pathMsg.poses.push_back(createPoseMsg(p.xPos(), p.yPos(), p.zPos(), newYaw));
     // }
     lastYaw = newYaw;
 
     pathCells.insert(p);
     if (p.x() != lastP.x() && p.y() != lastP.y()) {
       // For diagonal edges we need the two common neighbors of p and lastP to be non occupied
-      pathCells.insert(Cell(p.x(), lastP.y(), p.z()));
-      pathCells.insert(Cell(lastP.x(), p.y(), p.z()));
+      pathCells.insert(Cell(p.xPos(), lastP.yPos(), p.zPos()));
+      pathCells.insert(Cell(lastP.xPos(), p.yPos(), p.zPos()));
     }
   }
   Cell lastPoint = path[path.size()-1];   // Last point should have the same yaw as the previous point
-  pathMsg.poses.push_back(createPoseMsg(lastPoint.x()+0.5, lastPoint.y()+0.5, lastPoint.z()+0.5, lastYaw));
+  pathMsg.poses.push_back(createPoseMsg(lastPoint.xPos(), lastPoint.yPos(), lastPoint.zPos(), lastYaw));
   goalPos = lastPoint;  // TODO: Why is this here?
 }
 
@@ -506,10 +505,14 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
       
   ROS_INFO("Planning a path from %s to %s", s.asString().c_str(), t.asString().c_str());
   ROS_INFO("currPos: %2.2f,%2.2f,%2.2f\t s: %2.2f,%2.2f,%2.2f", 
-                      currPos.x, currPos.y, currPos.z, s.x()+0.5, s.y()+0.5, s.z()+0.5);
+                      currPos.x, currPos.y, currPos.z, s.xPos(), s.yPos(), s.zPos());
+  if (s == t) {
+    return true;
+  }
+
   bool foundPath = false;
   double bestPathCost = inf;
-  overEstimateFactor = 5.0;
+  overEstimateFactor = 2.0;
   maxIterations = 10000;
 
   while (overEstimateFactor >= 1.03 && maxIterations > lastIterations) {
@@ -555,12 +558,13 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
 // Searches for a path from s to t at maxHeight, fills path if it finds one
 bool GlobalPlanner::Find2DPath(std::vector<Cell> & path, const Cell & s, Cell t) {
   std::vector<Cell> upPath;
-  bool foundUpPath = FindPathOld(upPath, s, Cell(s.x(), s.y(), maxHeight), true);
+  Cell aboveS(Cell(s.x(), s.y(), maxHeight));
+  Cell aboveT(Cell(t.x(), t.y(), maxHeight));
+  bool foundUpPath = FindPathOld(upPath, s, aboveS, true);
   std::vector<Cell> downPath;
-  bool foundDownPath = FindPathOld(downPath, Cell(t.x(), t.y(), maxHeight), t, true);
+  bool foundDownPath = FindPathOld(downPath, aboveT, t, true);
   std::vector<Cell> verticalPath;
-  bool foundVerticalPath = FindPathOld(verticalPath, Cell(s.x(), s.y(), maxHeight), 
-                                       Cell(t.x(), t.y(), maxHeight), false);
+  bool foundVerticalPath = FindPathOld(verticalPath, aboveS, aboveT, false);
 
   if (foundUpPath && foundVerticalPath && foundDownPath) {
     path = upPath;

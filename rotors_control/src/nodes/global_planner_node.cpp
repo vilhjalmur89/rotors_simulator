@@ -66,9 +66,9 @@ void GlobalPlannerNode::SetNewGoal(Cell goal) {
   global_planner.setGoal(goal);
   geometry_msgs::PointStamped pointMsg;
   pointMsg.header.frame_id = "/world";
-  pointMsg.point.x = goal.x() + 0.5;
-  pointMsg.point.y = goal.y() + 0.5;
-  pointMsg.point.z = goal.z() + 0.5;
+  pointMsg.point.x = goal.xPos();
+  pointMsg.point.y = goal.yPos();
+  pointMsg.point.z = goal.zPos();
   cmd_clicked_point_pub_.publish(pointMsg);
   cmd_clicked_point_pub_.publish(pointMsg);
   PlanPath();
@@ -115,7 +115,7 @@ void GlobalPlannerNode::PositionCallback(const geometry_msgs::PoseStamped& msg) 
 void GlobalPlannerNode::ClickedPointCallback(
     const geometry_msgs::PointStamped& msg) {
 
-  SetNewGoal(Cell(msg.point.x, msg.point.y, 1.5));
+  SetNewGoal(Cell(msg.point.x, msg.point.y, 3.0));
 }
 
 
@@ -189,13 +189,13 @@ void GlobalPlannerNode::PublishExploredCells() {
     marker.action = visualization_msgs::Marker::ADD;
     marker.scale.x = marker.scale.y = marker.scale.z = 0.1;
     // TODO: Function
-    marker.pose.position.x = cell.x() + 0.5;
-    marker.pose.position.y = cell.y() + 0.5;
-    marker.pose.position.z = cell.z() + 0.5;
+    marker.pose.position.x = cell.xPos();
+    marker.pose.position.y = cell.yPos();
+    marker.pose.position.z = cell.zPos();
 
     // Just a hack to get the (almost) color spectrum depending on height
     // h=0 -> blue    h=0.5 -> green  h=1 -> red
-    // double h = (cell.z()-1.0) / 7.0;                   // height from 1 to 8 meters
+    // double h = (cell.zPos()-1.0) / 7.0;                   // height from 1 to 8 meters
     // double h = 0.5;                                    // single color (green)
     // risk from 0% to 100%, sqrt is used to increase difference in low risk
     double h = std::sqrt(global_planner.getRisk(cell));    

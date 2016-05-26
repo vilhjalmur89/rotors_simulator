@@ -56,7 +56,6 @@ class GlobalPlannerNode {
 
  private:
   GlobalPlanner global_planner;
-  WaypointWithTime goalCell;
   geometry_msgs::Point goalPoint;
   std::string namespace_;
   nav_msgs::Path actualPath;

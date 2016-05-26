@@ -37,7 +37,7 @@
 
   <!-- OctoMap Server -->
   <node pkg="octomap_server" type="octomap_server_node" name="octomap_server">
-    <param name="resolution" value="1" />
+    <param name="resolution" value="1.0" />
     <!-- fixed map frame (set to 'map' if SLAM or localization running!) -->
     <param name="frame_id" type="string" value="world" />
     <!-- maximum range to integrate (speedup!) -->
