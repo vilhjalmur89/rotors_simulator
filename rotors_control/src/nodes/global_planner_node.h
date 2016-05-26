@@ -44,6 +44,7 @@
 #include <octomap/OcTree.h>
 
 #include "rotors_control/common.h"
+#include "rotors_control/cell.h"
 #include "rotors_control/global_planner.h"
 
 namespace rotors_control {
@@ -100,8 +101,8 @@ class GlobalPlannerNode {
 
   void PublishPath();
   void PublishExploredCells();
-
 };
-}
+
+} // namespace rotors_control
 
 #endif // ROTORS_CONTROL_GLOBAL_PLANNER_NODE_H

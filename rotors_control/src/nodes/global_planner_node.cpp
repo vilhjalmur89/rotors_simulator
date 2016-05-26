@@ -40,8 +40,6 @@ using mavros::UAS;
 
 namespace rotors_control {
 
-
-
 GlobalPlannerNode::GlobalPlannerNode() {
   ros::NodeHandle nh;
 
@@ -219,7 +217,7 @@ void GlobalPlannerNode::PublishExploredCells() {
   cmd_explored_cells_pub_.publish(msg);
 }
 
-}
+} // namespace rotors_control
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "global_planner_node");

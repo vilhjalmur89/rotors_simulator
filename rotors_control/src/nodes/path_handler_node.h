@@ -24,7 +24,6 @@ class PathHandlerNode {
   ~PathHandlerNode();
 
  private:
-
   geometry_msgs::PoseStamped last_msg;
   geometry_msgs::PoseStamped last_pos;
   double speed = 1.0;
@@ -41,8 +40,8 @@ class PathHandlerNode {
   void ReceiveMessage(const geometry_msgs::PoseStamped& pose_msg);
   void ReceivePath(const nav_msgs::Path& msg);
   void PositionCallback(const geometry_msgs::PoseStamped& pose_msg);
-
 };
-}
+
+} // namespace rotors_control
 
 #endif // ROTORS_CONTROL_PATH_HANDLER_NODE_H

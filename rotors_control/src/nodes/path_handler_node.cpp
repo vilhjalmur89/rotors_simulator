@@ -123,8 +123,7 @@ void PathHandlerNode::PositionCallback(
   }
 }
 
-
-}
+} // namespace rotors_control 
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "path_handler_node");

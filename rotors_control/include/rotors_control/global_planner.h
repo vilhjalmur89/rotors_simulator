@@ -44,132 +44,21 @@
 #include <octomap/OcTree.h>
 
 #include "rotors_control/common.h"
+#include "rotors_control/cell.h"
 #include "rotors_control/parameters.h"
 
 namespace rotors_control {
 
-
-// TODO: tunable resolution
-// TODO: move to own file
-class Cell {
- public:
-  Cell(std::tuple<int, int, int> newTpl)
-    : tpl(newTpl) {}
-  Cell(double x, double y, double z)
-    : tpl(floor(x / scale), floor(y / scale), floor(z / scale)) {}
-  Cell() 
-    : Cell(0.0, 0.0, 0.0) {}
-  Cell(double x, double y) 
-    : Cell(x, y, 0.0) {}
-  Cell(geometry_msgs::Point point) 
-    : Cell(point.x, point.y, point.z) {}
-  Cell(Eigen::Vector3d point) 
-    : Cell(point[0], point[1], point[2])  {}
-
-  int x() const {return std::get<0>(tpl);}
-  int y() const {return std::get<1>(tpl);}
-  int z() const {return std::get<2>(tpl);}
-
-  double xPos() const {return scale * x() + scale * 0.5;}
-  double yPos() const {return scale * y() + scale * 0.5;}
-  double zPos() const {return scale * z() + scale * 0.5;}
-
-  double manhattanDist(double _x, double _y, double _z) const {
-    return std::abs(xPos() - _x) + std::abs(yPos() - _y) + std::abs(zPos() - _z);
-  }
-
-  double distance2D(const Cell & b) const {
-    // Straight-line distance disregarding the z-coordinate
-    return sqrt(squared(xPos() - b.xPos()) + squared(yPos() - b.yPos()));
-  }
-
-  double diagDistance2D(const Cell & b) const {
-    // Minimum distance on the XY-grid where you can move diagonally
-    double dx = abs(xPos() - b.xPos());
-    double dy = abs(yPos() - b.yPos());
-    double diagCost = 1.41421356237;
-    return (dx + dy) + (diagCost - 2) * std::min(dx, dy);
-  }
-
-  double angle() {
-    return atan2(y(), x());
-  }
-
-  Cell getNeighborFromYaw(double yaw) {
-    // Returns the neighboring cell in the yaw direction
-    // E.g. if yaw == PI/4, then it returns Cell(x+1, y+1, z)
-    int xDiff = 2 * scale * std::cos(yaw);
-    int yDiff = 2 * scale * std::sin(yaw);
-    ROS_INFO("parent: %d %d \n", xDiff, yDiff);
-    return Cell(xPos() + xDiff, yPos() + yDiff, zPos());
-  }
-
-  std::vector<Cell> getFlowNeighbors() const {
-    return std::vector<Cell>{Cell(std::tuple<int,int,int>(x() + 1, y(), z())),  
-                             Cell(std::tuple<int,int,int>(x() - 1, y(), z())),  
-                             Cell(std::tuple<int,int,int>(x(), y() + 1, z())),  
-                             Cell(std::tuple<int,int,int>(x(), y() - 1, z())),  
-                             Cell(std::tuple<int,int,int>(x(), y(), z() + 1)),  
-                             Cell(std::tuple<int,int,int>(x(), y(), z() - 1))
-                            };
-  }
-
-  std::vector<Cell> getDiagonalNeighbors() const {
-    return std::vector<Cell>{Cell(std::tuple<int,int,int>(x() + 1, y() + 1, z())),
-                             Cell(std::tuple<int,int,int>(x() - 1, y() + 1, z())),
-                             Cell(std::tuple<int,int,int>(x() + 1, y() - 1, z())),
-                             Cell(std::tuple<int,int,int>(x() - 1, y() - 1, z()))
-                            };
-  }
-
-  std::string asString() const {  
-    std::string s = "(" + std::to_string(x()) + "," + std::to_string(y()) + "," + std::to_string(z()) + ")";
-    return s;
-  }
-
-  std::tuple<int, int, int> tpl;
-  static constexpr double scale = 1.0;
-
-};
-
-inline bool operator==(const Cell & lhs, const Cell & rhs) {return lhs.tpl == rhs.tpl;}
-inline bool operator!=(const Cell & lhs, const Cell & rhs) {return !operator==(lhs,rhs);}
-inline bool operator< (const Cell & lhs, const Cell & rhs) {return lhs.tpl < rhs.tpl;}
-inline bool operator> (const Cell & lhs, const Cell & rhs) {return  operator< (rhs,lhs);}
-inline bool operator<=(const Cell & lhs, const Cell & rhs) {return !operator> (lhs,rhs);}
-inline bool operator>=(const Cell & lhs, const Cell & rhs) {return !operator< (lhs,rhs);}
-
-inline Cell operator+(const Cell& lhs, const Cell& rhs) {
-  Cell res(lhs.x() + rhs.x(), lhs.y() + rhs.y(), lhs.z() + rhs.z());
-  return res;
-}
-inline Cell operator-(const Cell& lhs, const Cell& rhs) {
-  Cell res(lhs.x() - rhs.x(), lhs.y() - rhs.y(), lhs.z() - rhs.z());
-  return res;
-}
-
-typedef std::pair<Cell, double> CellDistancePair;
-
-struct HashCell {
-    size_t operator()(const Cell & cell ) const
-    {
-        return std::hash<std::string>()(cell.asString());
-    }
-};
-
-
-
 class Node {
  public:
-  Node()
-      : cell(), parent() {
-  }
+  Node() = default ;
   Node(const Cell cell, const Cell parent)
       : cell(cell), parent(parent) {
   }
   Cell cell;
   Cell parent;
 };
+
 inline bool operator==(const Node& lhs, const Node& rhs) {
   return lhs.cell == rhs.cell && lhs.parent == rhs.parent;}
 inline bool operator< (const Node& lhs, const Node& rhs) {
@@ -305,12 +194,8 @@ class GlobalPlanner {
   bool FindPathOld(std::vector<Cell> & path, const Cell & s, const Cell t, bool is3D);
   bool FindSmoothPath(std::vector<Cell> & path, const Cell & s, const Cell & t, const Cell & parent);
   bool getGlobalPath();
-
-
- private:
-  static const int64_t kNanoSecondsInSecond = 1000000000;
-
 };
-}
+
+} // namespace rotors_control
 
 #endif // ROTORS_CONTROL_GLOBAL_PLANNER_H

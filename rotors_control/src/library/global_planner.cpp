@@ -24,7 +24,6 @@
 
 namespace rotors_control {
 
-
 // Returns the XY-angle between u and v, or if v is directly above/below u, it returns lastAng 
 double angle(Cell u, Cell v, double lastAng) {
   int dx = v.x() - u.x();
@@ -220,7 +219,7 @@ double GlobalPlanner::getEdgeDist(const Cell & u, const Cell & v) {
   int yDiff = std::abs(v.y() - u.y());
   int zDiff = v.z() - u.z();
   int diff = xDiff + yDiff;
-  if (diff == 1) return v.scale;      // v is horizontally adjacent to u
+  if (diff == 1) return v.scale;            // v is horizontally adjacent to u
   if (diff == 2) return 1.41 * v.scale;     // v is a diagonal neighbor of u
   if (zDiff == 1) return upCost * v.scale;  // v is above u
   return downCost * v.scale;                // v is below u
@@ -390,7 +389,7 @@ void GlobalPlanner::pathToMsg(const std::vector<Cell> & path) {
 PathInfo GlobalPlanner::getPathInfo(const std::vector<Cell> & path, const Node startNode) {
   Node lastNode = startNode;
   PathInfo pathInfo = {};
-  for(int i=0; i < path.size(); ++i) {
+  for(int i=1; i < path.size(); ++i) {
     Node currNode = Node(path[i], lastNode.cell);
     pathInfo.cost += getEdgeCost(lastNode, currNode);
     pathInfo.dist += getEdgeDist(currNode.parent, currNode.cell);
@@ -506,9 +505,6 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   ROS_INFO("Planning a path from %s to %s", s.asString().c_str(), t.asString().c_str());
   ROS_INFO("currPos: %2.2f,%2.2f,%2.2f\t s: %2.2f,%2.2f,%2.2f", 
                       currPos.x, currPos.y, currPos.z, s.xPos(), s.yPos(), s.zPos());
-  if (s == t) {
-    return true;
-  }
 
   bool foundPath = false;
   double bestPathCost = inf;
@@ -779,6 +775,4 @@ bool GlobalPlanner::getGlobalPath() {
   }
 }
 
-
-
-}
+} // namespace rotors_control

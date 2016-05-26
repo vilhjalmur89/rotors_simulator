@@ -106,7 +106,8 @@ void vectorFromSkewMatrix(Eigen::Matrix3d& skew_matrix, Eigen::Vector3d* vector)
 
 // GLOBAL PLANNER
 
-double squared(double x) {
+template <typename T>
+double squared(T x) {
   return x * x;
 }
 
