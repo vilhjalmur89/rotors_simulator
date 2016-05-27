@@ -141,12 +141,6 @@ void GlobalPlannerNode::OctomapFullCallback(
   if (!global_planner.updateFullOctomap(msg)) {
     // Part of the current path is blocked
     ROS_INFO("  Path is bad, planning a new path \n");
-    global_planner.truncatePath();             // Cut off bad part of path
-    // TODO: Decide whether to truncate path or not
-    // Cell tmp = global_planner.goalPos;
-    // global_planner.goalPos = Cell(global_planner.currPos);
-    // PublishPath();      
-    // global_planner.goalPos = tmp;             // Publish cut-off path
     PlanPath();                               // Plan a whole new path
   }
 }
@@ -163,7 +157,8 @@ void GlobalPlannerNode::PlanPath() {
 }
 
 void GlobalPlannerNode::PublishPath() {
-  cmd_global_path_pub_.publish(global_planner.pathMsg);
+  auto pathMsg = global_planner.getPathMsg();
+  cmd_global_path_pub_.publish(pathMsg);
 }
 
 void GlobalPlannerNode::PublishExploredCells() {

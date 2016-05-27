@@ -1,26 +1,4 @@
-/*
- * Copyright 2015 Fadri Furrer, ASL, ETH Zurich, Switzerland
- * Copyright 2015 Michael Burri, ASL, ETH Zurich, Switzerland
- * Copyright 2015 Mina Kamel, ASL, ETH Zurich, Switzerland
- * Copyright 2015 Janosch Nikolic, ASL, ETH Zurich, Switzerland
- * Copyright 2015 Markus Achtelik, ASL, ETH Zurich, Switzerland
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
-
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #include "rotors_control/cell.h"
-
-#include <ctime>  // clock
 
 namespace rotors_control {
 
@@ -44,36 +22,39 @@ double Cell::xPos() const {return scale * x() + scale * 0.5;}
 double Cell::yPos() const {return scale * y() + scale * 0.5;}
 double Cell::zPos() const {return scale * z() + scale * 0.5;}
 
+// Returns the Manhattan-distance from the center of the Cell
 double Cell::manhattanDist(double _x, double _y, double _z) const {
   return std::abs(xPos() - _x) + std::abs(yPos() - _y) + std::abs(zPos() - _z);
 }
 
+// Returns the straight-line distance, disregarding the z-coordinate, to the center of the Cell
 double Cell::distance2D(const Cell & b) const {
-  // Straight-line distance disregarding the z-coordinate
   return sqrt(squared(xPos() - b.xPos()) + squared(yPos() - b.yPos()));
 }
 
+// Returns the minimum distance on the XY-grid, where you can move diagonally, to the center of the Cell
 double Cell::diagDistance2D(const Cell & b) const {
-  // Minimum distance on the XY-grid where you can move diagonally
   double dx = abs(xPos() - b.xPos());
   double dy = abs(yPos() - b.yPos());
   double diagCost = 1.41421356237;
   return (dx + dy) + (diagCost - 2) * std::min(dx, dy);
 }
 
+// Returns the angle in the XY-plane between the Cell and the X-axis
+// Cell at position (0,1,1) has the angle PI / 2  
 double Cell::angle() const {
   return atan2(y(), x());
 }
 
+// Returns the neighboring cell in the yaw direction
+// E.g. if yaw == PI/4, then it returns Cell(x+1, y+1, z)
 Cell Cell::getNeighborFromYaw(double yaw) const {
-  // Returns the neighboring cell in the yaw direction
-  // E.g. if yaw == PI/4, then it returns Cell(x+1, y+1, z)
   int xDiff = 2 * scale * std::cos(yaw);
   int yDiff = 2 * scale * std::sin(yaw);
-  // ROS_INFO("parent: %d %d \n", xDiff, yDiff);
   return Cell(xPos() + xDiff, yPos() + yDiff, zPos());
 }
 
+// Returns the neighbors of the Cell whose risk influences the Cell
 std::vector<Cell> Cell::getFlowNeighbors() const {
   return std::vector<Cell>{Cell(std::tuple<int,int,int>(x() + 1, y(), z())),  
                            Cell(std::tuple<int,int,int>(x() - 1, y(), z())),  
@@ -84,6 +65,7 @@ std::vector<Cell> Cell::getFlowNeighbors() const {
                           };
 }
 
+// Returns the neighbors of the Cell that are diagonal to the cell in the XY-plane
 std::vector<Cell> Cell::getDiagonalNeighbors() const {
   return std::vector<Cell>{Cell(std::tuple<int,int,int>(x() + 1, y() + 1, z())),
                            Cell(std::tuple<int,int,int>(x() - 1, y() + 1, z())),

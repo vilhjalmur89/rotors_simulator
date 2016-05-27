@@ -1,98 +1,28 @@
-/*
- * Copyright 2015 Fadri Furrer, ASL, ETH Zurich, Switzerland
- * Copyright 2015 Michael Burri, ASL, ETH Zurich, Switzerland
- * Copyright 2015 Mina Kamel, ASL, ETH Zurich, Switzerland
- * Copyright 2015 Janosch Nikolic, ASL, ETH Zurich, Switzerland
- * Copyright 2015 Markus Achtelik, ASL, ETH Zurich, Switzerland
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
-
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #ifndef ROTORS_CONTROL_GLOBAL_PLANNER_H
 #define ROTORS_CONTROL_GLOBAL_PLANNER_H
 
-#include <ros/ros.h>
-#include <mav_msgs/conversions.h>
-#include <mav_msgs/eigen_mav_msgs.h>
 #include <nav_msgs/Path.h>
-#include <visualization_msgs/MarkerArray.h>
 #include <tf/transform_listener.h> // getYaw createQuaternionMsgFromYaw 
 
+#include <algorithm>        // std::reverse
+#include <limits>           // numeric_limits
+#include <math.h>           // abs
 #include <queue>            // std::priority_queue
+#include <string>
+#include <tuple>
 #include <unordered_map>  
 #include <unordered_set>  
-#include <algorithm>        // std::reverse
-#include <math.h>           // abs
-#include <tuple>
-#include <string>
-#include <limits>           // numeric_limits
-#include <string>
 
-#include <octomap_msgs/conversions.h>
-#include <octomap_msgs/Octomap.h>
 #include <octomap/octomap.h>
 #include <octomap/OcTree.h>
+#include <octomap_msgs/conversions.h>
+#include <octomap_msgs/Octomap.h>
 
-#include "rotors_control/common.h"
 #include "rotors_control/cell.h"
-#include "rotors_control/parameters.h"
+#include "rotors_control/common.h"
+#include "rotors_control/node.h"
 
 namespace rotors_control {
-
-class Node {
- public:
-  Node() = default ;
-  Node(const Cell cell, const Cell parent)
-      : cell(cell), parent(parent) {
-  }
-  Cell cell;
-  Cell parent;
-};
-
-inline bool operator==(const Node& lhs, const Node& rhs) {
-  return lhs.cell == rhs.cell && lhs.parent == rhs.parent;}
-inline bool operator< (const Node& lhs, const Node& rhs) {
-  return lhs.cell < rhs.cell || (lhs.cell == rhs.cell && lhs.parent < rhs.parent);}
-inline bool operator!=(const Node& lhs, const Node& rhs) {return !operator==(lhs,rhs);}
-inline bool operator> (const Node& lhs, const Node& rhs) {return  operator< (rhs,lhs);}
-inline bool operator<=(const Node& lhs, const Node& rhs) {return !operator> (lhs,rhs);}
-inline bool operator>=(const Node& lhs, const Node& rhs) {return !operator< (lhs,rhs);}
-
-typedef std::pair<Node, double> NodeDistancePair;
-
-struct HashNode {
-  size_t operator()(const Node &node ) const
-  {
-    HashCell hash;
-    std::string s = "";
-    s += hash(node.cell);
-    s += " ";
-    s += hash(node.parent);
-    return std::hash<std::string>()(s);
-  }
-};  
-
-
-class CompareDist
-{
-public:
-    bool operator()(const CellDistancePair n1, const CellDistancePair n2) {
-      return n1.second > n2.second;
-    }
-    bool operator()(const NodeDistancePair n1, const NodeDistancePair n2) {
-      return n1.second > n2.second;
-    }
-};
 
 struct PathInfo {
   bool foundPath;
@@ -101,7 +31,6 @@ struct PathInfo {
   double risk;
   double smoothness;
 };
-
 
 class GlobalPlanner {
  public:
@@ -115,18 +44,16 @@ class GlobalPlanner {
 
   // Needed to quickly estimate the risk of vertical movement
   std::vector<double> accumulatedHeightPrior; // accumulatedHeightPrior[i] = sum(heightPrior[0:i])
-  
 
-  std::unordered_map<Cell,  double, HashCell> occProb;
-  std::unordered_map<Cell, double, HashCell> riskCache;
-  std::unordered_map<Cell, double, HashCell> seenCount;        // number of times a cell was explored in last search
+  std::unordered_map<Cell, double, HashCell> occProb;   // OctoMap probability of Cell being occupied
+  std::unordered_map<Cell, double, HashCell> seenCount; // number of times a cell was explored in last search
+  std::unordered_map<Cell, double, HashCell> riskCache; // Cache of getRisk(Cell)
   
-  std::unordered_set<Cell, HashCell> seen;        // Set of cells that were explored in last search
-  std::unordered_set<Cell, HashCell> occupied;
-  std::unordered_set<Cell, HashCell> pathCells;   // Set of cells that are on current path, and cannot be blocked
+  std::unordered_set<Cell, HashCell> seen;        // Cells that were explored in last search
+  std::unordered_set<Cell, HashCell> occupied;    // Cells such that occProp[Cell] > maxPathProp
+  std::unordered_set<Cell, HashCell> pathCells;   // Cells that are on current path, and may not be blocked
 
   // TODO: rename and remove not needed
-  nav_msgs::Path pathMsg;
   std::vector<Cell> pathBack;
   geometry_msgs::Point currPos;
   double currYaw;
@@ -161,14 +88,15 @@ class GlobalPlanner {
   ~GlobalPlanner();
 
   void calculateAccumulatedHeightPrior();
+
   void setPose(const geometry_msgs::Point & newPos, double newYaw);
   void setGoal(const Cell & goal);
+  void setPath(const std::vector<Cell> & path);
+
   bool updateFullOctomap(const octomap_msgs::Octomap & msg);
-  void increaseResolution(double minDist, double minRot, double minTime);
-  void truncatePath();
+  
+  void getOpenNeighbors(const Cell & cell, std::vector<CellDistancePair> & neighbors, bool is3D);
   bool isNearWall(const Cell & cell);
-  void getOpenNeighbors(const Cell & cell, std::vector<CellDistancePair> & neighbors,
-                        bool is3D);
 
   double getEdgeDist(const Cell & u, const Cell & v);
   double getSingleCellRisk(const Cell & cell);
@@ -182,8 +110,7 @@ class GlobalPlanner {
   double getHeuristic(const Node & u, const Cell & goal);
   
   geometry_msgs::PoseStamped createPoseMsg(double x, double y, double z, double yaw);
-  void pathToMsg(const std::vector<Cell> & path);
-  void goBack();
+  nav_msgs::Path getPathMsg();
 
   PathInfo getPathInfo(const std::vector<Cell> & path, const Node lastNode);
   void printPathStats(const std::vector<Cell> & path, const Cell startParent, const Cell start,
@@ -193,7 +120,9 @@ class GlobalPlanner {
   bool Find2DPath(std::vector<Cell> & path, const Cell & s, Cell t);
   bool FindPathOld(std::vector<Cell> & path, const Cell & s, const Cell t, bool is3D);
   bool FindSmoothPath(std::vector<Cell> & path, const Cell & s, const Cell & t, const Cell & parent);
+  
   bool getGlobalPath();
+  void goBack();
 };
 
 } // namespace rotors_control

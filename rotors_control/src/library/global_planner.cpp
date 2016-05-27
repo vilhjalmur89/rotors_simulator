@@ -20,11 +20,10 @@
 
 #include "rotors_control/global_planner.h"
 
-#include <ctime>  // clock
-
 namespace rotors_control {
 
 // Returns the XY-angle between u and v, or if v is directly above/below u, it returns lastAng 
+// TODO: change name
 double angle(Cell u, Cell v, double lastAng) {
   int dx = v.x() - u.x();
   int dy = v.y() - u.y();
@@ -33,7 +32,6 @@ double angle(Cell u, Cell v, double lastAng) {
   }
   return atan2(dy, dx);
 }
-
 
 GlobalPlanner::GlobalPlanner()  {
   calculateAccumulatedHeightPrior();
@@ -56,36 +54,40 @@ void GlobalPlanner::setPose(const geometry_msgs::Point & newPos, double newYaw) 
   currPos = newPos;
   currYaw = newYaw;
   Cell currCell = Cell(currPos);
-  if (!goingBack && (pathBack.size() == 0 || currCell != pathBack[pathBack.size()-1])) {
+  if (!goingBack && (pathBack.empty() || currCell != pathBack.back())) {
     // Keep track of where we have been, add current position to pathBack if it is different from last one
     pathBack.push_back(currCell);
   }
 }
 
+// Sets a new mission goal, not used for temporary goals, e.g. goBack()
 void GlobalPlanner::setGoal(const Cell & goal) {
   goalPos = goal;
   goingBack = false;
   goalIsBlocked = false;
 }
 
-// Sets the current path to be the path back until a safe cell is reached
-// Then the mission can be tried again or a new mission can be set
-void GlobalPlanner::goBack() {
-  ROS_INFO("  GO BACK ");
-  goingBack = true;
-  std::vector<Cell> newPath = pathBack;
-  std::reverse(newPath.begin(), newPath.end());
+// Sets path to be the current path
+void GlobalPlanner::setPath(const std::vector<Cell> & path) {
+  Cell s = path.front();
+  Cell parentOfS = s.getNeighborFromYaw(currYaw + M_PI); // The cell behind the start cell
+  lastPathInfo = getPathInfo(path, Node(s, parentOfS));
+  lastPath = path;
 
-  // Follow the path back until the risk is low
-  for (int i=1; i < newPath.size()-1; ++i){
-    if (i > 5 && getRisk(newPath[i]) < 0.5) {
-      newPath.resize(i+1);                    // newPath is the last i+1 positions of pathBack
-      pathBack.resize(pathBack.size()-i-2);   // Remove part of pathBack that is also in newPath
-      break;
-    }    
+  pathCells.clear();
+  for (int i=1; i < path.size(); ++i) {
+    Cell p = path[i];
+    Cell lastP = path[i-1];
+
+    pathCells.insert(p);
+    if (p.x() != lastP.x() && p.y() != lastP.y()) {
+      // For diagonal edges we need the two common neighbors of p and lastP to be non occupied
+      pathCells.insert(Cell(p.xPos(), lastP.yPos(), p.zPos()));
+      pathCells.insert(Cell(lastP.xPos(), p.yPos(), p.zPos()));
+    }
   }
-  pathToMsg(newPath);
 }
+
 
 // TODO: May not need this function
 // Returns false iff current path has an obstacle
@@ -109,7 +111,7 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
           // Cell is on path and is risky enough to abort mission
           currPathIsFree = false;
           printf("BAD CELL: %s \n", cell.asString().c_str());
-          pathCells.clear();  // TODO: is this ok, and is it not done in truncate path?
+          pathCells.clear();  // TODO: is this ok?
         }
       }
 
@@ -122,7 +124,7 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
   delete octree;
 
   // Check if the risk of the current path has increased 
-  if (lastPath.size() > 0) {
+  if (!lastPath.empty()) {
     PathInfo newInfo = getPathInfo(lastPath, Node(lastPath[0], lastPath[0]));
     if (newInfo.risk > lastPathInfo.risk + 10) {
       currPathIsFree = false;
@@ -132,26 +134,11 @@ bool GlobalPlanner::updateFullOctomap(const octomap_msgs::Octomap & msg) {
   return currPathIsFree;
 }
 
-// TODO: is this needed?
-void GlobalPlanner::truncatePath() {
-  pathCells.clear();
-  pathMsg.poses.resize(0);
-}
-
-// Returns true if cell has an occupied neighbor 
-bool GlobalPlanner::isNearWall(const Cell & cell){
-  for (Cell neighbor : cell.getDiagonalNeighbors()) {
-    if (occupied.find(neighbor) != occupied.end()) {
-      return true;
-    }
-  }
-  return false;
-}
-
 // TODO: simplify and return neighbors
-void GlobalPlanner::getOpenNeighbors(const Cell & cell, std::vector<CellDistancePair> & neighbors,
+// Fills neighbors with the 8 horizontal and 2 vertical non-occupied neigbors
+void GlobalPlanner::getOpenNeighbors(const Cell & cell, 
+                                     std::vector<CellDistancePair> & neighbors,
                                      bool is3D) {
-  // Fill neighbors with the 8 horizontal and 2 vertical non-occupied neigbors
   // It's long because it uses the minimum number of 'if's 
   double x = cell.x();
   double y = cell.y();
@@ -212,6 +199,15 @@ void GlobalPlanner::getOpenNeighbors(const Cell & cell, std::vector<CellDistance
   }
 }
 
+// Returns true if cell has an occupied neighbor 
+bool GlobalPlanner::isNearWall(const Cell & cell){
+  for (Cell neighbor : cell.getDiagonalNeighbors()) {
+    if (occupied.find(neighbor) != occupied.end()) {
+      return true;
+    }
+  }
+  return false;
+}
 
 // The distance between two adjacent cells
 double GlobalPlanner::getEdgeDist(const Cell & u, const Cell & v) {
@@ -354,34 +350,25 @@ geometry_msgs::PoseStamped GlobalPlanner::createPoseMsg(double x, double y, doub
   return poseMsg;
 }
 
-// TODO: Return msg?
-void GlobalPlanner::pathToMsg(const std::vector<Cell> & path) {
+nav_msgs::Path GlobalPlanner::getPathMsg() {
+  nav_msgs::Path pathMsg;
   pathMsg.header.frame_id="/world";
-  pathMsg.poses.resize(0);
 
   // Use actual position instead of the center of the cell
   double lastYaw = currYaw;
-  pathCells.clear();
 
-  for (int i=1; i < path.size()-1; ++i) {
-    Cell p = path[i];
-    Cell lastP = path[i-1];
-    double newYaw = angle(p, path[i+1], lastYaw);
+  for (int i=1; i < lastPath.size()-1; ++i) {
+    Cell p = lastPath[i];
+    Cell lastP = lastPath[i-1];
+    double newYaw = angle(p, lastPath[i+1], lastYaw);
     // if (newYaw != lastYaw) {   // only publish corner points
       pathMsg.poses.push_back(createPoseMsg(p.xPos(), p.yPos(), p.zPos(), newYaw));
     // }
     lastYaw = newYaw;
-
-    pathCells.insert(p);
-    if (p.x() != lastP.x() && p.y() != lastP.y()) {
-      // For diagonal edges we need the two common neighbors of p and lastP to be non occupied
-      pathCells.insert(Cell(p.xPos(), lastP.yPos(), p.zPos()));
-      pathCells.insert(Cell(lastP.xPos(), p.yPos(), p.zPos()));
-    }
   }
-  Cell lastPoint = path[path.size()-1];   // Last point should have the same yaw as the previous point
+  Cell lastPoint = lastPath[lastPath.size()-1];   // Last point should have the same yaw as the previous point
   pathMsg.poses.push_back(createPoseMsg(lastPoint.xPos(), lastPoint.yPos(), lastPoint.zPos(), lastYaw));
-  goalPos = lastPoint;  // TODO: Why is this here?
+  return pathMsg;
 }
 
 // Returns details of the cost of the path
@@ -541,11 +528,6 @@ bool GlobalPlanner::FindPath(std::vector<Cell> & path) {
   if (!foundPath) {
     maxIterations = 5000;
     foundPath = Find2DPath(path, s, t);
-  }
-
-  if (foundPath) {
-    lastPathInfo = getPathInfo(path, Node(s, parentOfS));
-    lastPath = path;
   }
 
   return foundPath;
@@ -770,9 +752,29 @@ bool GlobalPlanner::getGlobalPath() {
       goalIsBlocked = true;
       return false;
     }
-    pathToMsg(path);
+    setPath(path);
     return true;
   }
+}
+
+// Sets the current path to be the path back until a safe cell is reached
+// Then the mission can be tried again or a new mission can be set
+void GlobalPlanner::goBack() {
+  ROS_INFO("  GO BACK ");
+  goingBack = true;
+  std::vector<Cell> newPath = pathBack;
+  std::reverse(newPath.begin(), newPath.end());
+
+  // Follow the path back until the risk is low
+  for (int i=1; i < newPath.size()-1; ++i){
+    if (i > 5 && getRisk(newPath[i]) < 0.5) {
+      newPath.resize(i+1);                    // newPath is the last i+1 positions of pathBack
+      pathBack.resize(pathBack.size()-i-2);   // Remove part of pathBack that is also in newPath
+      break;
+    }    
+  }
+  lastPath = newPath;
+  goalPos = newPath[newPath.size()-1];
 }
 
 } // namespace rotors_control

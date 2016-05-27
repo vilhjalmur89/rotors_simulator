@@ -2,13 +2,12 @@
 #define ROTORS_CONTROL_CELL
 
 #include <math.h>           // abs
-#include <tuple>
 #include <string>
+#include <tuple>
 
 #include "rotors_control/common.h"
 
 namespace rotors_control {
-
 
 class Cell {
  public:
