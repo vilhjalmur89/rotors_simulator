@@ -1,5 +1,3 @@
-#include <ros/ros.h>
-
 #include "path_handler_node.h"
 
 namespace rotors_control {

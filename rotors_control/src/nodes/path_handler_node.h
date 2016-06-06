@@ -1,20 +1,16 @@
 #ifndef ROTORS_CONTROL_PATH_HANDLER_NODE_H
 #define ROTORS_CONTROL_PATH_HANDLER_NODE_H
 
+#include <math.h> // floor
 #include <vector>
+
 #include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/PointStamped.h>
-#include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/Vector3.h>
-#include <trajectory_msgs/MultiDOFJointTrajectory.h>
 #include <nav_msgs/Path.h>
-#include <tf/transform_broadcaster.h>
-#include <tf/transform_listener.h>  // getYaw
+#include <tf/transform_datatypes.h>  // getYaw
+#include <ros/ros.h>
 
 #include "rotors_control/common.h" // hasSameYawAndAltitude
-
-
-// #include <math.h>           
 
 namespace rotors_control {
 

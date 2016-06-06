@@ -1,42 +1,4 @@
-/*
- * Copyright 2015 Fadri Furrer, ASL, ETH Zurich, Switzerland
- * Copyright 2015 Michael Burri, ASL, ETH Zurich, Switzerland
- * Copyright 2015 Mina Kamel, ASL, ETH Zurich, Switzerland
- * Copyright 2015 Janosch Nikolic, ASL, ETH Zurich, Switzerland
- * Copyright 2015 Markus Achtelik, ASL, ETH Zurich, Switzerland
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
-
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-#include <ros/ros.h>
-// #include <mav_msgs/default_topics.h>
-
 #include "global_planner_node.h"
-
-#include "rotors_control/parameters_ros.h"
-
-#include <tf/transform_listener.h> // getYaw createQuaternionMsgFromYaw 
-#include <geometry_msgs/Quaternion.h>
-#include <math.h> // floor
-
-#include <ros/ros.h>
-#include <mavros/mavros_uas.h>
-
-#include <tf2/LinearMath/Quaternion.h>
-#include <tf2/LinearMath/Matrix3x3.h>
-
-
-using mavros::UAS;
 
 namespace rotors_control {
 
@@ -84,7 +46,6 @@ void GlobalPlannerNode::PositionCallback(const geometry_msgs::PoseStamped& msg) 
   auto rot_msg = msg;
   double yaw = tf::getYaw(rot_msg.pose.orientation);
 
-  
   rot_msg.pose.position.x = (msg.pose.position.y);  // 90 deg fix
   rot_msg.pose.position.y = -(msg.pose.position.x); // 90 deg fix
   yaw -= M_PI/2;                                    // 90 deg fix

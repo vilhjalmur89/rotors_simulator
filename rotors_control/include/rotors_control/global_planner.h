@@ -1,9 +1,6 @@
 #ifndef ROTORS_CONTROL_GLOBAL_PLANNER_H
 #define ROTORS_CONTROL_GLOBAL_PLANNER_H
 
-#include <nav_msgs/Path.h>
-#include <tf/transform_listener.h> // getYaw createQuaternionMsgFromYaw 
-
 #include <algorithm>        // std::reverse
 #include <limits>           // numeric_limits
 #include <math.h>           // abs
@@ -12,6 +9,9 @@
 #include <tuple>
 #include <unordered_map>  
 #include <unordered_set>  
+
+#include <nav_msgs/Path.h>
+#include <tf/transform_listener.h> // getYaw createQuaternionMsgFromYaw 
 
 #include <octomap/octomap.h>
 #include <octomap/OcTree.h>
@@ -69,7 +69,7 @@ class GlobalPlanner {
   double maxCellRisk = 20.0;
   double smoothFactor = 2.0;
   double vertToHorCost = 1.0;   // The cost of changing between vertical and horizontal motion
-  double riskFactor = 50.0;
+  double riskFactor = 100.0;
   double neighborRiskFlow = 0.2;
   double explorePenalty = 0.015;
   double upCost = 3.0;
